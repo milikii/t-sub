@@ -126,6 +126,8 @@ Workers & Pages -> t-sub -> Settings
 | `SESSION_TTL_SECONDS` | `86400` | 登录有效期，默认 1 天 |
 | `ONE_TIME_TTL_SECONDS` | `300` | 一次性链接默认有效期，默认 5 分钟 |
 | `MAX_ONE_TIME_TTL_SECONDS` | `900` | 一次性链接最大有效期，默认 15 分钟 |
+| `ONE_TIME_GRACE_SECONDS` | `20` | 首次拉取后的兼容宽限时间，避免客户端二次请求失败 |
+| `ONE_TIME_MAX_GETS` | `2` | 宽限时间内最多返回配置的 GET 次数 |
 | `MAX_NODES_BYTES` | `65536` | 节点输入最大体积 |
 | `MAX_RENDERED_BYTES` | `131072` | 生成 YAML 最大体积 |
 

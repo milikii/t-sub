@@ -36,6 +36,7 @@ export class OneTimeConfig {
       createdAt: body.createdAt,
       expiresAt: body.expiresAt,
       consumedAt: null,
+      servedCount: 0,
     });
     await this.state.storage.setAlarm(expiresAtMs + 60_000);
     return json({ ok: true });
@@ -53,7 +54,7 @@ export class OneTimeConfig {
       return text("链接已过期\n", { status: 410 });
     }
 
-    if (record.consumedAt || !record.encryptedConfig || !record.iv) {
+    if (record.consumedAt && !canServeDuringGrace(record, now, this.env)) {
       return text("链接已使用\n", { status: 410 });
     }
 
@@ -62,18 +63,36 @@ export class OneTimeConfig {
         status: 204,
         headers: {
           "cache-control": "no-store",
-          "x-t-sub-token-state": "pending",
+          "x-t-sub-token-state": record.consumedAt ? "grace" : "pending",
         },
       });
     }
 
+    if (!record.encryptedConfig || !record.iv) {
+      return text("链接已使用\n", { status: 410 });
+    }
+
     const configYaml = await decryptConfig(record, this.env);
-    await this.state.storage.put(RECORD_KEY, {
-      templateId: record.templateId,
-      createdAt: record.createdAt,
-      expiresAt: record.expiresAt,
-      consumedAt: new Date().toISOString(),
-    });
+    const nextServedCount = Number(record.servedCount || 0) + 1;
+    const consumedAt = record.consumedAt || new Date().toISOString();
+    const graceUntil = record.graceUntil || graceUntilIso(now, this.env);
+    const keepPayload = nextServedCount < maxGetCount(this.env) && Date.parse(graceUntil) > now;
+
+    const nextRecord = {
+      ...record,
+      consumedAt,
+      graceUntil,
+      servedCount: nextServedCount,
+    };
+    if (keepPayload) {
+      nextRecord.encryptedConfig = record.encryptedConfig;
+      nextRecord.iv = record.iv;
+    } else {
+      delete nextRecord.encryptedConfig;
+      delete nextRecord.iv;
+    }
+    await this.state.storage.put(RECORD_KEY, nextRecord);
+    await this.state.storage.setAlarm(Math.min(Date.parse(record.expiresAt), Date.parse(graceUntil)) + 60_000);
 
     return new Response(configYaml, {
       status: 200,
@@ -88,6 +107,30 @@ export class OneTimeConfig {
   async alarm() {
     await this.state.storage.delete(RECORD_KEY);
   }
+}
+
+function canServeDuringGrace(record, now, env) {
+  if (!record.encryptedConfig || !record.iv) return false;
+  if (Number(record.servedCount || 0) >= maxGetCount(env)) return false;
+  return Date.parse(record.graceUntil || record.consumedAt) > now;
+}
+
+function graceUntilIso(now, env) {
+  return new Date(now + graceSeconds(env) * 1000).toISOString();
+}
+
+function graceSeconds(env) {
+  return clampNumber(env.ONE_TIME_GRACE_SECONDS, 20, 0, 60);
+}
+
+function maxGetCount(env) {
+  return clampNumber(env.ONE_TIME_MAX_GETS, 2, 1, 5);
+}
+
+function clampNumber(value, fallback, min, max) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(Math.floor(parsed), max));
 }
 
 async function encryptConfig(configYaml, env) {

@@ -115,6 +115,43 @@ test("worker login, render, and one-time subscription flow", async () => {
   assert.match(yaml, /MATCH,Proxy/);
 
   const secondGet = await worker.fetch(new Request(body.url), env);
+  assert.equal(secondGet.status, 200);
+  assert.match(await secondGet.text(), /name: "Sample"/);
+
+  const thirdGet = await worker.fetch(new Request(body.url), env);
+  assert.equal(thirdGet.status, 410);
+  assert.match(await thirdGet.text(), /链接已使用/);
+});
+
+test("one-time subscription can disable grace replay", async () => {
+  const env = await makeEnv("test-password");
+  env.ONE_TIME_GRACE_SECONDS = "0";
+  const login = await worker.fetch(
+    new Request("http://local.test/api/login", {
+      method: "POST",
+      body: JSON.stringify({ password: "test-password" }),
+    }),
+    env,
+  );
+  const cookie = login.headers.get("set-cookie").split(";")[0];
+  const render = await worker.fetch(
+    new Request("http://local.test/api/render", {
+      method: "POST",
+      headers: {
+        cookie,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        templateId: "android",
+        nodesText: "ss://YWVzLTEyOC1nY206cGFzc0BleGFtcGxlLmNvbTo4Mzg4#Sample",
+        variables: { PROFILE_NAME: "E2E" },
+      }),
+    }),
+    env,
+  );
+  const body = await render.json();
+  assert.equal((await worker.fetch(new Request(body.url), env)).status, 200);
+  const secondGet = await worker.fetch(new Request(body.url), env);
   assert.equal(secondGet.status, 410);
   assert.match(await secondGet.text(), /链接已使用/);
 });
@@ -126,6 +163,8 @@ async function makeEnv(password) {
     SESSION_TTL_SECONDS: "86400",
     ONE_TIME_TTL_SECONDS: "300",
     MAX_ONE_TIME_TTL_SECONDS: "900",
+    ONE_TIME_GRACE_SECONDS: "20",
+    ONE_TIME_MAX_GETS: "2",
     MAX_NODES_BYTES: "65536",
     MAX_RENDERED_BYTES: "131072",
   };
