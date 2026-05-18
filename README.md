@@ -2,8 +2,6 @@
 
 私有的一次性 mihomo 配置生成器，部署在 Cloudflare Workers 上。
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/milikii/t-sub)
-
 ## 这是做什么的
 
 `t-sub` 用来把你自己的节点临时转换成 mihomo 配置：
@@ -17,19 +15,45 @@
 
 项目只长期保存配置模板，不长期保存节点信息，不做订阅更新。
 
-## 一键部署
+## 推荐部署方式：连接当前仓库
 
-直接点上面的 **Deploy to Cloudflare** 按钮。
+如果你就是这个仓库的 owner，推荐用这种方式。它会直接连接当前 GitHub 仓库 `milikii/t-sub`，不会创建新仓库。
 
-Cloudflare 页面里按提示操作：
+在 Cloudflare 控制台操作：
 
-1. 登录 Cloudflare。
-2. 授权 GitHub。
-3. 选择或 fork 这个仓库。
-4. 填写部署时提示的变量。
-5. 点击部署。
+1. 打开 Cloudflare Dashboard。
+2. 进入 `Workers & Pages`。
+3. 点击 `Create application`。
+4. 选择 `Import a repository`。
+5. 连接 GitHub。
+6. 仓库权限选择 `Only select repositories`，只授权 `milikii/t-sub`。
+7. 选择仓库 `milikii/t-sub`。
+8. 项目名填 `t-sub`。
+9. 生产分支选择 `master`。
+10. Root directory 填 `/` 或保持默认。
+11. Deploy command 使用默认值 `npx wrangler deploy`。
+12. 保存并部署。
 
-需要填写的关键项：
+需要填写的 secrets：
+
+| 名称 | 怎么填 |
+| --- | --- |
+| `OWNER_PASSWORD` | 网页登录密码。你要的默认密码可以填 `alex007`。 |
+| `SESSION_SECRET` | 随机密钥。填一串 32 位以上随机字符，例如 `d5f6a9b4c2e7f1a8d0c3b6e9a4f2c8d1`。 |
+
+部署完成后，Cloudflare 会从这个 GitHub 仓库拉代码。以后你 push 到 `master`，Cloudflare 会自动重新构建和部署。
+
+## Deploy Button 是什么
+
+Cloudflare 的 Deploy Button 不是“直接绑定当前仓库”。它是模板部署入口，会把源码复制到部署者自己的 GitHub/GitLab 账号里，再从那个新仓库部署。
+
+这个按钮适合别人拿这个项目部署自己的副本：
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/milikii/t-sub)
+
+如果你不想创建新仓库，不要用这个按钮，使用上面的“连接当前仓库”方式。
+
+Deploy Button 方式需要填写：
 
 | 名称 | 怎么填 |
 | --- | --- |
@@ -43,7 +67,7 @@ Cloudflare 页面里按提示操作：
 - Durable Object：保存一次性配置并负责“读取一次后失效”。
 - Secrets：保存 `OWNER_PASSWORD` 和 `SESSION_SECRET`。
 
-你不需要在本机运行 `npm install`、`wrangler login`、`wrangler deploy`。
+这两种部署方式都不需要你在本机运行 `npm install`、`wrangler login`、`wrangler deploy`。
 
 ## 部署后怎么用
 
