@@ -29,3 +29,34 @@ test("rejects unresolved template variables", () => {
     /未填写的变量/,
   );
 });
+
+test("injects generated proxies into a full mihomo template without placeholders", () => {
+  const result = renderConfig({
+    template: {
+      id: "full",
+      name: "Full",
+      platform: "custom",
+      body: [
+        "mixed-port: 7890",
+        "proxies:",
+        "  - name: __HOME_NODE_MISSING__",
+        "    type: reject",
+        "proxy-groups:",
+        "  - name: Proxy",
+        "    type: select",
+        "    proxies:",
+        "      - __HOME_NODE_MISSING__",
+        "rules:",
+        "  - MATCH,Proxy",
+        "",
+      ].join("\n"),
+      variables: [],
+    },
+    nodesText: "ss://YWVzLTI1Ni1nY206cGFzc0Bzcy5leGFtcGxlLmNvbTo4Mzg4#ss%20node",
+    variables: {},
+  });
+
+  assert.match(result.configYaml, /proxies:\n  - name: "ss node"/);
+  assert.match(result.configYaml, /name: __HOME_NODE_MISSING__/);
+  assert.match(result.configYaml, /proxy-groups:/);
+});

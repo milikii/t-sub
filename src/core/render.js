@@ -30,6 +30,9 @@ export function renderConfig({ template, nodesText, variables = {}, limits = {} 
   };
 
   let configYaml = template.body;
+  if (!configYaml.includes("{{PROXIES_YAML}}")) {
+    configYaml = insertProxiesIntoTopLevelSection(configYaml, proxiesYaml);
+  }
   for (const [key, value] of Object.entries(replacements)) {
     configYaml = configYaml.replaceAll(`{{${key}}}`, String(value));
   }
@@ -53,6 +56,23 @@ export function renderConfig({ template, nodesText, variables = {}, limits = {} 
     proxies,
     byteLength: size,
   };
+}
+
+function insertProxiesIntoTopLevelSection(body, proxiesYaml) {
+  const lines = body.split(/\r?\n/);
+  const index = lines.findIndex((line) => /^proxies\s*:/.test(line));
+  if (index < 0) {
+    throw new RenderValidationError("模板内容必须包含 {{PROXIES_YAML}}，或者包含顶层 proxies: 段。");
+  }
+
+  const comment = lines[index].match(/^proxies\s*:\s*(#.*)$/)?.[1];
+  const proxiesLine = comment ? `proxies: ${comment}` : "proxies:";
+  return [
+    ...lines.slice(0, index),
+    proxiesLine,
+    proxiesYaml,
+    ...lines.slice(index + 1),
+  ].join("\n");
 }
 
 function buildVariableValues(template, inputValues) {

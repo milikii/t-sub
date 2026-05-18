@@ -131,12 +131,18 @@ Workers & Pages -> t-sub -> Settings
 
 ## 模板占位符
 
-每个模板必须包含：
+节点注入有两种方式：
 
 ```text
 {{PROXIES_YAML}}
 {{PROXY_NAMES_YAML}}
 ```
+
+推荐完整模板直接保留顶层 `proxies:` 段。没有 `{{PROXIES_YAML}}` 时，系统会自动把你粘贴的节点插入到顶层 `proxies:` 下面，并保留模板里已有的兜底节点。
+
+如果你想精确控制节点插入位置，就在模板里写 `{{PROXIES_YAML}}`。
+
+`{{PROXY_NAMES_YAML}}` 只在你的代理组需要显式列出所有节点名称时使用；如果模板使用 `include-all` 和 `filter`，通常不需要它。
 
 内置占位符：
 

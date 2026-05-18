@@ -495,7 +495,7 @@ function renderTemplateEditor(template) {
     <label>YAML 模板
       <textarea id="templateBody" class="template-editor" spellcheck="false">\${escapeHtml(template.body)}</textarea>
     </label>
-    <div class="notice">必需占位符：{{PROXIES_YAML}} 和 {{PROXY_NAMES_YAML}}。其他大写占位符会自动变成变量输入项。</div>
+    <div class="notice">节点注入：可写 {{PROXIES_YAML}} 精确指定位置；如果不写，系统会自动把节点插入顶层 proxies: 段。{{PROXY_NAMES_YAML}} 只在需要显式列出节点名称时使用。</div>
     <div class="actions">
       <button class="primary" type="submit">保存模板</button>
       <button class="danger" id="deleteTemplate" type="button">删除</button>

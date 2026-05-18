@@ -69,11 +69,8 @@ export function normalizeTemplate(input, existing = null) {
 
   if (!id) throw new Error("模板 ID 不能为空。");
   if (!name) throw new Error("模板名称不能为空。");
-  if (!body.includes("{{PROXIES_YAML}}")) {
-    throw new Error("模板内容必须包含 {{PROXIES_YAML}}。");
-  }
-  if (!body.includes("{{PROXY_NAMES_YAML}}")) {
-    throw new Error("模板内容必须包含 {{PROXY_NAMES_YAML}}。");
+  if (!hasProxyInjectionPoint(body)) {
+    throw new Error("模板内容必须包含 {{PROXIES_YAML}}，或者包含顶层 proxies: 段。");
   }
 
   return {
@@ -87,6 +84,10 @@ export function normalizeTemplate(input, existing = null) {
     updatedAt: now,
     revision: Number(existing?.revision || input.revision || 0) + 1,
   };
+}
+
+function hasProxyInjectionPoint(body) {
+  return body.includes("{{PROXIES_YAML}}") || /^proxies\s*:/m.test(body);
 }
 
 function normalizeVariables(value) {
