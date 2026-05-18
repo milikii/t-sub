@@ -11,13 +11,20 @@ export class UnauthorizedError extends Error {
 }
 
 export async function verifyOwnerPassword(password, env) {
-  if (!env.OWNER_PASSWORD_HASH) return false;
-  const expected = String(env.OWNER_PASSWORD_HASH);
-  if (!expected.startsWith("sha256:")) {
-    throw new Error("OWNER_PASSWORD_HASH must use sha256:<hex> format.");
+  if (env.OWNER_PASSWORD) {
+    return constantTimeEqual(String(password), String(env.OWNER_PASSWORD));
   }
-  const digest = await sha256Hex(password);
-  return constantTimeEqual(`sha256:${digest}`, expected);
+
+  if (env.OWNER_PASSWORD_HASH) {
+    const expected = String(env.OWNER_PASSWORD_HASH);
+    if (!expected.startsWith("sha256:")) {
+      throw new Error("OWNER_PASSWORD_HASH must use sha256:<hex> format.");
+    }
+    const digest = await sha256Hex(password);
+    return constantTimeEqual(`sha256:${digest}`, expected);
+  }
+
+  return false;
 }
 
 export async function createSessionCookie(env, ttlSeconds = 86400) {

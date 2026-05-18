@@ -3,6 +3,11 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { createSessionCookie, getSession, verifyOwnerPassword } from "../src/core/auth.js";
 
+test("verifies owner password secret", async () => {
+  assert.equal(await verifyOwnerPassword("alex007", { OWNER_PASSWORD: "alex007" }), true);
+  assert.equal(await verifyOwnerPassword("wrong", { OWNER_PASSWORD: "alex007" }), false);
+});
+
 test("verifies sha256 owner password hash", async () => {
   const password = "correct horse battery staple";
   const hash = createHash("sha256").update(password).digest("hex");
@@ -24,4 +29,3 @@ test("creates and verifies signed session cookie", async () => {
   assert.equal(session.authenticated, true);
   assert.equal(session.method, "password");
 });
-

@@ -7,10 +7,23 @@
   "scripts": {
     "cf:setup": "node scripts/cloudflare-setup.mjs",
     "dev": "wrangler dev",
-    "predeploy": "node scripts/check-deploy-ready.mjs",
+    "check:deploy": "node scripts/check-deploy-ready.mjs",
     "deploy": "wrangler deploy",
     "test": "node --test",
     "hash-password": "node scripts/hash-password.mjs"
+  },
+  "cloudflare": {
+    "bindings": {
+      "OWNER_PASSWORD": {
+        "description": "网页登录密码。你可以填 alex007，或换成自己的密码。"
+      },
+      "SESSION_SECRET": {
+        "description": "随机会话密钥，用于登录 cookie 签名和一次性配置加密。建议填 32 位以上随机字符串。"
+      },
+      "PUBLIC_BASE_URL": {
+        "description": "可选。绑定自定义域名后填写完整 URL，例如 https://sub.example.com；不填则自动使用当前访问域名。"
+      }
+    }
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

@@ -1,8 +1,6 @@
-# Generate with: npm run hash-password -- "your owner password"
-OWNER_PASSWORD_HASH="sha256:REPLACE_WITH_HASH_FROM_NPM_RUN_HASH_PASSWORD"
+# Cloudflare Deploy Button 会读取这个文件并提示你填写 secrets。
+# OWNER_PASSWORD 可以直接填 alex007，或换成你自己的登录密码。
+OWNER_PASSWORD="alex007"
 
-# Generate with: openssl rand -hex 32
-SESSION_SECRET="replace-with-at-least-32-random-characters"
-
-# Local default. Use your Worker or custom domain in production.
-PUBLIC_BASE_URL="http://127.0.0.1:8787"
+# 建议部署时替换成 32 位以上随机字符串，例如 32-64 个字母数字。
+SESSION_SECRET="replace-with-a-long-random-secret"

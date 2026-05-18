@@ -67,7 +67,7 @@ test("worker login, render, and one-time subscription flow", async () => {
 async function makeEnv(password) {
   const env = {
     TEMPLATES: new FakeKv(),
-    OWNER_PASSWORD_HASH: `sha256:${await sha256Hex(password)}`,
+    OWNER_PASSWORD: password,
     SESSION_SECRET: "test-session-secret-with-at-least-32-chars",
     SESSION_TTL_SECONDS: "86400",
     ONE_TIME_TTL_SECONDS: "300",
@@ -149,9 +149,4 @@ class FakeDurableObjectStorage {
   }
 
   async setAlarm() {}
-}
-
-async function sha256Hex(value) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(value)));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
