@@ -5,8 +5,9 @@ import { makeRandomToken } from "./core/encoding.js";
 import { deleteTemplate, getTemplate, listTemplates, saveTemplate } from "./core/template-store.js";
 import { renderConfig } from "./core/render.js";
 import { OneTimeConfig } from "./one-time-config.js";
+import { TemplateStore } from "./template-store-do.js";
 
-export { OneTimeConfig };
+export { OneTimeConfig, TemplateStore };
 
 export default {
   async fetch(request, env) {

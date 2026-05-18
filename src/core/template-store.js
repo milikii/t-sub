@@ -1,58 +1,51 @@
-import { DEFAULT_TEMPLATES, normalizeTemplate, withTemplateTimestamps } from "./templates.js";
-
-const TEMPLATE_PREFIX = "template:";
-const SEEDED_KEY = "templates:seeded:v1";
-
 export async function listTemplates(env) {
-  await ensureSeeded(env);
-  const list = await env.TEMPLATES.list({ prefix: TEMPLATE_PREFIX });
-  const records = await Promise.all(
-    list.keys.map(async (key) => JSON.parse(await env.TEMPLATES.get(key.name))),
-  );
-  return records.sort((a, b) => a.name.localeCompare(b.name));
+  const data = await templateStoreRequest(env, "/templates");
+  return data.templates;
 }
 
 export async function getTemplate(env, id) {
-  await ensureSeeded(env);
-  const raw = await env.TEMPLATES.get(templateKey(id));
-  if (!raw) {
-    const error = new Error("Template not found.");
-    error.name = "NotFoundError";
-    throw error;
-  }
-  return JSON.parse(raw);
+  const data = await templateStoreRequest(env, `/templates/${encodeURIComponent(id)}`);
+  return data.template;
 }
 
 export async function saveTemplate(env, input) {
-  await ensureSeeded(env);
-  const existingRaw = input.id ? await env.TEMPLATES.get(templateKey(input.id)) : null;
-  const existing = existingRaw ? JSON.parse(existingRaw) : null;
-  const template = normalizeTemplate(input, existing);
-  await env.TEMPLATES.put(templateKey(template.id), JSON.stringify(template));
-  return template;
+  const id = input.id ? `/${encodeURIComponent(input.id)}` : "";
+  const data = await templateStoreRequest(env, `/templates${id}`, {
+    method: input.id ? "PUT" : "POST",
+    body: JSON.stringify(input),
+  });
+  return data.template;
 }
 
 export async function deleteTemplate(env, id) {
-  await ensureSeeded(env);
-  await env.TEMPLATES.delete(templateKey(id));
+  await templateStoreRequest(env, `/templates/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }
 
-async function ensureSeeded(env) {
-  if (!env.TEMPLATES) throw new Error("TEMPLATES KV binding is missing.");
-  if (await env.TEMPLATES.get(SEEDED_KEY)) return;
-  const now = new Date().toISOString();
-  await Promise.all(
-    DEFAULT_TEMPLATES.map((template) =>
-      env.TEMPLATES.put(
-        templateKey(template.id),
-        JSON.stringify(withTemplateTimestamps({ ...template, createdAt: now, updatedAt: now })),
-      ),
-    ),
-  );
-  await env.TEMPLATES.put(SEEDED_KEY, now);
-}
+async function templateStoreRequest(env, path, init = {}) {
+  if (!env.TEMPLATE_STORE) {
+    throw new Error("TEMPLATE_STORE Durable Object binding is missing.");
+  }
 
-function templateKey(id) {
-  return `${TEMPLATE_PREFIX}${id}`;
-}
+  const id = env.TEMPLATE_STORE.idFromName("templates");
+  const stub = env.TEMPLATE_STORE.get(id);
+  const response = await stub.fetch(`https://template-store${path}`, {
+    ...init,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      ...(init.headers || {}),
+    },
+  });
+  const data = await response.json();
 
+  if (!response.ok) {
+    const error = new Error(data.error?.message || "Template store request failed.");
+    error.name = data.error?.type || "TemplateStoreError";
+    error.status = response.status;
+    error.details = data.error?.details;
+    throw error;
+  }
+
+  return data;
+}

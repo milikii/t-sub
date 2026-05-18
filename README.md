@@ -2,6 +2,8 @@
 
 私有的一次性 mihomo 配置生成器，部署在 Cloudflare Workers 上。
 
+[![一键连接当前仓库部署到 Cloudflare](https://img.shields.io/badge/Cloudflare-连接当前仓库部署-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://dash.cloudflare.com/?to=/:account/workers-and-pages)
+
 ## 这是做什么的
 
 `t-sub` 用来把你自己的节点临时转换成 mihomo 配置：
@@ -15,9 +17,9 @@
 
 项目只长期保存配置模板，不长期保存节点信息，不做订阅更新。
 
-## 推荐部署方式：连接当前仓库
+## 一键连接当前仓库部署
 
-如果你就是这个仓库的 owner，推荐用这种方式。它会直接连接当前 GitHub 仓库 `milikii/t-sub`，不会创建新仓库。
+点上面的橙色按钮，进入 Cloudflare 的 `Workers & Pages` 页面，然后连接当前 GitHub 仓库 `milikii/t-sub`。这条路径不会创建新仓库。
 
 在 Cloudflare 控制台操作：
 
@@ -32,7 +34,8 @@
 9. 生产分支选择 `master`。
 10. Root directory 填 `/` 或保持默认。
 11. Deploy command 使用默认值 `npx wrangler deploy`。
-12. 保存并部署。
+12. 在变量/Secrets 区域添加 `OWNER_PASSWORD` 和 `SESSION_SECRET`。
+13. 保存并部署。
 
 需要填写的 secrets：
 
@@ -41,33 +44,22 @@
 | `OWNER_PASSWORD` | 网页登录密码。你要的默认密码可以填 `alex007`。 |
 | `SESSION_SECRET` | 随机密钥。填一串 32 位以上随机字符，例如 `d5f6a9b4c2e7f1a8d0c3b6e9a4f2c8d1`。 |
 
-部署完成后，Cloudflare 会从这个 GitHub 仓库拉代码。以后你 push 到 `master`，Cloudflare 会自动重新构建和部署。
+如果创建页面没显示变量/Secrets 区域，先创建项目，然后到这里补上两个 secret，再重新部署：
 
-## Deploy Button 是什么
+```text
+Workers & Pages -> t-sub -> Settings -> Variables and Secrets
+```
 
-Cloudflare 的 Deploy Button 不是“直接绑定当前仓库”。它是模板部署入口，会把源码复制到部署者自己的 GitHub/GitLab 账号里，再从那个新仓库部署。
-
-这个按钮适合别人拿这个项目部署自己的副本：
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/milikii/t-sub)
-
-如果你不想创建新仓库，不要用这个按钮，使用上面的“连接当前仓库”方式。
-
-Deploy Button 方式需要填写：
-
-| 名称 | 怎么填 |
-| --- | --- |
-| `OWNER_PASSWORD` | 网页登录密码。你要的默认密码可以填 `alex007`。 |
-| `SESSION_SECRET` | 随机密钥。填一串 32 位以上随机字符，例如 `d5f6a9b4c2e7f1a8d0c3b6e9a4f2c8d1`。 |
-
-部署按钮会根据 `wrangler.toml` 创建并绑定：
+Cloudflare 会根据 `wrangler.toml` 自动部署这些资源：
 
 - Worker：网页和 API。
-- KV namespace：保存配置模板。
-- Durable Object：保存一次性配置并负责“读取一次后失效”。
+- Durable Object `TEMPLATE_STORE`：保存配置模板。
+- Durable Object `ONE_TIME_CONFIGS`：保存一次性配置并负责“读取一次后失效”。
 - Secrets：保存 `OWNER_PASSWORD` 和 `SESSION_SECRET`。
 
-这两种部署方式都不需要你在本机运行 `npm install`、`wrangler login`、`wrangler deploy`。
+你不需要在本机运行 `npm install`、`wrangler login`、`wrangler deploy`，也不需要手动创建 KV namespace。
+
+部署完成后，Cloudflare 会从当前 GitHub 仓库拉代码。以后你 push 到 `master`，Cloudflare 会自动重新构建和部署。
 
 ## 部署后怎么用
 
@@ -122,7 +114,7 @@ Workers & Pages -> t-sub -> Settings
 
 | 类型 | 名称 | 用途 |
 | --- | --- | --- |
-| KV Namespace | `TEMPLATES` | 保存配置模板 |
+| Durable Object | `TEMPLATE_STORE` | 保存配置模板 |
 | Durable Object | `ONE_TIME_CONFIGS` | 保存一次性配置状态 |
 | Secret | `OWNER_PASSWORD` | 网页登录密码 |
 | Secret | `SESSION_SECRET` | 会话签名和一次性配置加密 |
@@ -162,9 +154,19 @@ Workers & Pages -> t-sub -> Settings
 
 ## 常见问题
 
-### 点按钮后没有提示填写密码
+### Cloudflare 让我创建新仓库怎么办
 
-确认仓库里存在 `.dev.vars.example`。Cloudflare Deploy Button 会读取这个文件并提示填写 secrets。
+你点到的是 Cloudflare 的模板部署流程。不要用那个流程。回到本 README 顶部，点击“连接当前仓库部署”按钮，然后选择 `Import a repository` 和 `milikii/t-sub`。
+
+### 没看到 `milikii/t-sub` 仓库
+
+重新连接 GitHub，并在仓库权限里选择：
+
+```text
+Only select repositories -> milikii/t-sub
+```
+
+如果已经授权过 GitHub App，到 GitHub 的 Cloudflare Workers and Pages App 设置里补选这个仓库。
 
 ### 部署成功，但网页登录不了
 
@@ -220,7 +222,6 @@ npm run dev
 
 ```bash
 npx wrangler login
-npm run cf:setup
 npx wrangler secret put OWNER_PASSWORD
 npx wrangler secret put SESSION_SECRET
 npm run deploy
@@ -228,8 +229,7 @@ npm run deploy
 
 ## 官方文档
 
-- Cloudflare Deploy Button：https://developers.cloudflare.com/workers/tutorials/deploy-button/
+- Cloudflare Git 集成：https://developers.cloudflare.com/workers/ci-cd/builds/git-integration/github-integration/
 - Wrangler：https://developers.cloudflare.com/workers/wrangler/
-- KV：https://developers.cloudflare.com/kv/
 - Durable Objects：https://developers.cloudflare.com/durable-objects/
 - Worker Secrets：https://developers.cloudflare.com/workers/configuration/secrets/

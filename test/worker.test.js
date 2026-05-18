@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import worker, { OneTimeConfig } from "../src/worker.js";
+import worker, { OneTimeConfig, TemplateStore } from "../src/worker.js";
 
 test("worker login, render, and one-time subscription flow", async () => {
   const env = await makeEnv("test-password");
@@ -27,6 +27,59 @@ test("worker login, render, and one-time subscription flow", async () => {
   );
   assert.equal(templates.status, 200);
   assert.ok((await templates.json()).templates.some((template) => template.id === "android"));
+
+  const customTemplate = await worker.fetch(
+    new Request("http://local.test/api/templates", {
+      method: "POST",
+      headers: {
+        cookie,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Custom",
+        platform: "custom",
+        body: [
+          "proxies:",
+          "{{PROXIES_YAML}}",
+          "proxy-groups:",
+          "  - name: Proxy",
+          "    type: select",
+          "    proxies:",
+          "{{PROXY_NAMES_YAML}}",
+          "rules:",
+          "  - MATCH,Proxy",
+          "",
+        ].join("\n"),
+        variables: [],
+      }),
+    }),
+    env,
+  );
+  assert.equal(customTemplate.status, 200);
+  const createdTemplate = (await customTemplate.json()).template;
+
+  const updateTemplate = await worker.fetch(
+    new Request(`http://local.test/api/templates/${createdTemplate.id}`, {
+      method: "PUT",
+      headers: {
+        cookie,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ ...createdTemplate, name: "Custom Updated" }),
+    }),
+    env,
+  );
+  assert.equal(updateTemplate.status, 200);
+  assert.equal((await updateTemplate.json()).template.name, "Custom Updated");
+
+  const deleteTemplate = await worker.fetch(
+    new Request(`http://local.test/api/templates/${createdTemplate.id}`, {
+      method: "DELETE",
+      headers: { cookie },
+    }),
+    env,
+  );
+  assert.equal(deleteTemplate.status, 200);
 
   const render = await worker.fetch(
     new Request("http://local.test/api/render", {
@@ -66,7 +119,6 @@ test("worker login, render, and one-time subscription flow", async () => {
 
 async function makeEnv(password) {
   const env = {
-    TEMPLATES: new FakeKv(),
     OWNER_PASSWORD: password,
     SESSION_SECRET: "test-session-secret-with-at-least-32-chars",
     SESSION_TTL_SECONDS: "86400",
@@ -75,40 +127,14 @@ async function makeEnv(password) {
     MAX_NODES_BYTES: "65536",
     MAX_RENDERED_BYTES: "131072",
   };
-  env.ONE_TIME_CONFIGS = new FakeDurableObjectNamespace(env);
+  env.ONE_TIME_CONFIGS = new FakeDurableObjectNamespace(OneTimeConfig, env);
+  env.TEMPLATE_STORE = new FakeDurableObjectNamespace(TemplateStore, env);
   return env;
 }
 
-class FakeKv {
-  constructor() {
-    this.records = new Map();
-  }
-
-  async get(key) {
-    return this.records.get(key) ?? null;
-  }
-
-  async put(key, value) {
-    this.records.set(key, String(value));
-  }
-
-  async delete(key) {
-    this.records.delete(key);
-  }
-
-  async list(options = {}) {
-    const prefix = options.prefix || "";
-    return {
-      keys: [...this.records.keys()]
-        .filter((name) => name.startsWith(prefix))
-        .sort()
-        .map((name) => ({ name })),
-    };
-  }
-}
-
 class FakeDurableObjectNamespace {
-  constructor(env) {
+  constructor(ObjectClass, env) {
+    this.ObjectClass = ObjectClass;
     this.env = env;
     this.objects = new Map();
   }
@@ -119,7 +145,7 @@ class FakeDurableObjectNamespace {
 
   get(id) {
     if (!this.objects.has(id)) {
-      this.objects.set(id, new OneTimeConfig({ storage: new FakeDurableObjectStorage() }, this.env));
+      this.objects.set(id, new this.ObjectClass({ storage: new FakeDurableObjectStorage() }, this.env));
     }
     const object = this.objects.get(id);
     return {
@@ -146,6 +172,16 @@ class FakeDurableObjectStorage {
 
   async delete(key) {
     this.records.delete(key);
+  }
+
+  async list(options = {}) {
+    const prefix = options.prefix || "";
+    return new Map(
+      [...this.records.entries()]
+        .filter(([key]) => key.startsWith(prefix))
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, value]) => [key, structuredClone(value)]),
+    );
   }
 
   async setAlarm() {}

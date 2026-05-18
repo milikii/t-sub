@@ -1,4 +1,4 @@
-# Cloudflare Deploy Button 会读取这个文件并提示你填写 secrets。
+# Cloudflare 连接当前仓库部署时，把这些值配置成 Worker secrets。
 # OWNER_PASSWORD 可以直接填 alex007，或换成你自己的登录密码。
 OWNER_PASSWORD="alex007"
 
