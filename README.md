@@ -170,6 +170,17 @@ Android 内置模板已经是完整 mihomo alpha 配置，不需要手写 `{{PRO
 {{DNS_MODE}}
 ```
 
+## VLESS 节点解析
+
+节点解析器优先覆盖 VLESS 系列：
+
+- Reality 单节点：`security=reality`、`pbk/publicKey`、`sid/shortId`、`sni/serverName`、`fp/fingerprint`、`alpn`、`packetEncoding`。
+- XHTTP 节点：`type=xhttp`、`host`、`path`、`mode`。
+- XHTTP CDN + padding：支持 Xray `extra` JSON 里的 `headers`、`noGRPCHeader`、`xPaddingBytes`、`xPaddingObfsMode`、`xPaddingKey`、`xPaddingHeader`、`xPaddingPlacement`、`xPaddingMethod`、`uplinkHttpMethod`、`scMaxEachPostBytes`、`scMinPostsIntervalMs`、`xmux`。
+- 上下行分离：支持 `extra.downloadSettings`，可把上行配置为 XHTTP CDN，同时把下行配置为 Reality + XHTTP。
+
+链接里可以用 Xray 的 camelCase 参数，也可以用 mihomo 的 kebab-case 参数。生成 YAML 时会输出为 mihomo 可读的字段，例如 `xhttp-opts`、`download-settings`、`reuse-settings`、`reality-opts`。
+
 ## 常见问题
 
 ### Cloudflare 让我创建新仓库怎么办
