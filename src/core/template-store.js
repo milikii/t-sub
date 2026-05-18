@@ -25,7 +25,7 @@ export async function deleteTemplate(env, id) {
 
 async function templateStoreRequest(env, path, init = {}) {
   if (!env.TEMPLATE_STORE) {
-    throw new Error("TEMPLATE_STORE Durable Object binding is missing.");
+    throw new Error("缺少 TEMPLATE_STORE Durable Object 绑定。");
   }
 
   const id = env.TEMPLATE_STORE.idFromName("templates");
@@ -40,7 +40,7 @@ async function templateStoreRequest(env, path, init = {}) {
   const data = await response.json();
 
   if (!response.ok) {
-    const error = new Error(data.error?.message || "Template store request failed.");
+    const error = new Error(data.error?.message || "模板存储请求失败。");
     error.name = data.error?.type || "TemplateStoreError";
     error.status = response.status;
     error.details = data.error?.details;

@@ -114,7 +114,7 @@ test("worker login, render, and one-time subscription flow", async () => {
 
   const secondGet = await worker.fetch(new Request(body.url), env);
   assert.equal(secondGet.status, 410);
-  assert.match(await secondGet.text(), /already used/i);
+  assert.match(await secondGet.text(), /链接已使用/);
 });
 
 async function makeEnv(password) {

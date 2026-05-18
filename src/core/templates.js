@@ -3,7 +3,7 @@ export const DEFAULT_TEMPLATES = [
     id: "android",
     name: "Android",
     platform: "android",
-    description: "Balanced mobile profile with mixed-port and a single selectable proxy group.",
+    description: "适合手机使用的均衡配置，包含 mixed-port 和单个可选代理组。",
     body: defaultTemplateBody({ allowLan: false, ipv6: false, logLevel: "warning" }),
     variables: [
       { name: "PROFILE_NAME", required: true, defaultValue: "Android" },
@@ -14,7 +14,7 @@ export const DEFAULT_TEMPLATES = [
     id: "nas",
     name: "NAS",
     platform: "nas",
-    description: "LAN-friendly profile for a NAS or gateway device.",
+    description: "适合 NAS 或网关设备使用，允许局域网访问。",
     body: defaultTemplateBody({ allowLan: true, ipv6: true, logLevel: "info" }),
     variables: [
       { name: "PROFILE_NAME", required: true, defaultValue: "NAS" },
@@ -25,7 +25,7 @@ export const DEFAULT_TEMPLATES = [
     id: "windows",
     name: "Windows",
     platform: "windows",
-    description: "Desktop profile with controller enabled on loopback only.",
+    description: "适合桌面客户端使用，仅在本机开启控制接口。",
     body: `${defaultTemplateBody({ allowLan: false, ipv6: true, logLevel: "info" })}
 external-controller: 127.0.0.1:9090
 `,
@@ -37,7 +37,7 @@ external-controller: 127.0.0.1:9090
 ];
 
 function defaultTemplateBody({ allowLan, ipv6, logLevel }) {
-  return `# {{PROFILE_NAME}} generated at {{GENERATED_AT}}
+  return `# {{PROFILE_NAME}} 生成于 {{GENERATED_AT}}
 mixed-port: 7890
 allow-lan: ${allowLan}
 ipv6: ${ipv6}
@@ -67,13 +67,13 @@ export function normalizeTemplate(input, existing = null) {
     ? input.platform
     : "custom";
 
-  if (!id) throw new Error("Template id is required.");
-  if (!name) throw new Error("Template name is required.");
+  if (!id) throw new Error("模板 ID 不能为空。");
+  if (!name) throw new Error("模板名称不能为空。");
   if (!body.includes("{{PROXIES_YAML}}")) {
-    throw new Error("Template body must include {{PROXIES_YAML}}.");
+    throw new Error("模板内容必须包含 {{PROXIES_YAML}}。");
   }
   if (!body.includes("{{PROXY_NAMES_YAML}}")) {
-    throw new Error("Template body must include {{PROXY_NAMES_YAML}}.");
+    throw new Error("模板内容必须包含 {{PROXY_NAMES_YAML}}。");
   }
 
   return {
@@ -108,4 +108,3 @@ export function withTemplateTimestamps(template) {
     updatedAt: template.updatedAt || now,
   };
 }
-

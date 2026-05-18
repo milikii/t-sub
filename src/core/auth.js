@@ -3,7 +3,7 @@ import { constantTimeEqual } from "./encoding.js";
 const COOKIE_NAME = "t_sub_session";
 
 export class UnauthorizedError extends Error {
-  constructor(message = "Authentication required.") {
+  constructor(message = "需要登录后操作。") {
     super(message);
     this.name = "UnauthorizedError";
     this.status = 401;
@@ -18,7 +18,7 @@ export async function verifyOwnerPassword(password, env) {
   if (env.OWNER_PASSWORD_HASH) {
     const expected = String(env.OWNER_PASSWORD_HASH);
     if (!expected.startsWith("sha256:")) {
-      throw new Error("OWNER_PASSWORD_HASH must use sha256:<hex> format.");
+      throw new Error("OWNER_PASSWORD_HASH 必须使用 sha256:<hex> 格式。");
     }
     const digest = await sha256Hex(password);
     return constantTimeEqual(`sha256:${digest}`, expected);
@@ -98,7 +98,7 @@ function parseCookies(header) {
 function sessionSecret(env) {
   const secret = env.SESSION_SECRET || env.OWNER_PASSWORD_HASH || "";
   if (secret.length < 24) {
-    throw new Error("SESSION_SECRET must be set to at least 24 characters.");
+    throw new Error("SESSION_SECRET 至少需要 24 个字符。");
   }
   return secret;
 }

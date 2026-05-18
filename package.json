@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Private one-time mihomo config handoff tool for Cloudflare Workers.",
+  "description": "私有的一次性 mihomo 配置交付工具，部署在 Cloudflare Workers 上。",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
@@ -13,7 +13,7 @@
   "cloudflare": {
     "bindings": {
       "OWNER_PASSWORD": {
-        "description": "网页登录密码。你可以填 alex007，或换成自己的密码。"
+        "description": "网页登录密码。请填写你自己的密码。"
       },
       "SESSION_SECRET": {
         "description": "随机会话密钥，用于登录 cookie 签名和一次性配置加密。建议填 32 位以上随机字符串。"

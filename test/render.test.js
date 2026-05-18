@@ -10,7 +10,7 @@ test("renders mihomo yaml from template and node lines", () => {
     variables: { PROFILE_NAME: "Phone" },
   });
 
-  assert.match(result.configYaml, /Phone generated/);
+  assert.match(result.configYaml, /Phone 生成于/);
   assert.match(result.configYaml, /type: "ss"|type: ss/);
   assert.match(result.configYaml, /ss node/);
   assert.equal(result.proxies.length, 1);
@@ -26,7 +26,6 @@ test("rejects unresolved template variables", () => {
       nodesText: "ss://YWVzLTI1Ni1nY206cGFzc0Bzcy5leGFtcGxlLmNvbTo4Mzg4#ss",
       variables: {},
     }),
-    /unresolved variables/,
+    /未填写的变量/,
   );
 });
-

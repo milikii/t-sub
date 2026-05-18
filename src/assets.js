@@ -335,7 +335,7 @@ async function api(path, options = {}) {
   const text = await res.text();
   const data = text ? JSON.parse(text) : {};
   if (!res.ok) {
-    const message = data?.error?.message || "Request failed";
+    const message = data?.error?.message || "请求失败";
     if (!options.silent) state.error = message;
     throw new Error(message);
   }
@@ -362,45 +362,45 @@ function render() {
     <header class="topbar">
       <div class="brand">
         <h1>t-sub</h1>
-        <span>Private one-time mihomo config handoff</span>
+        <span>私有的一次性 mihomo 配置交付工具</span>
       </div>
       <div class="actions">
-        <button id="reloadTemplates">Reload</button>
-        <button id="logout">Logout</button>
+        <button id="reloadTemplates">刷新</button>
+        <button id="logout">退出</button>
       </div>
     </header>
     <div class="workspace">
       <section class="panel">
         <div class="panel-header">
-          <h2>Generate one-time config</h2>
-          <span class="notice">Nodes are only used for this transient handoff.</span>
+          <h2>生成一次性配置</h2>
+          <span class="notice">节点只用于本次临时生成，不会长期保存。</span>
         </div>
         <div class="panel-body stack">
           \${state.error ? \`<div class="error">\${escapeHtml(state.error)}</div>\` : ""}
-          <label>Nodes, one per line
+          <label>节点，一行一个
             <textarea id="nodesText" class="nodes-input" spellcheck="false" placeholder="ss://...&#10;vmess://...">\${escapeHtml(state.nodesText)}</textarea>
           </label>
-          <label>Template
+          <label>配置模板
             <select id="templateSelect">
-              \${state.templates.map((item) => \`<option value="\${item.id}" \${item.id === state.selectedId ? "selected" : ""}>\${escapeHtml(item.name)} (\${escapeHtml(item.platform)})</option>\`).join("")}
+              \${state.templates.map((item) => \`<option value="\${item.id}" \${item.id === state.selectedId ? "selected" : ""}>\${escapeHtml(item.name)}（\${escapeHtml(platformLabel(item.platform))}）</option>\`).join("")}
             </select>
           </label>
           <div id="variables" class="stack">
             \${renderVariableInputs(template)}
           </div>
           <div class="actions">
-            <button class="primary" id="generate" \${state.busy ? "disabled" : ""}>Generate URL + QR</button>
-            <button id="clearNodes">Clear nodes</button>
+            <button class="primary" id="generate" \${state.busy ? "disabled" : ""}>生成链接和二维码</button>
+            <button id="clearNodes">清空节点</button>
           </div>
           \${state.result ? renderResult() : ""}
         </div>
       </section>
       <section class="panel">
         <div class="panel-header">
-          <h2>Templates</h2>
+          <h2>模板</h2>
           <div class="actions">
-            <button id="newTemplate">New</button>
-            <button id="duplicateTemplate" \${template ? "" : "disabled"}>Duplicate</button>
+            <button id="newTemplate">新建</button>
+            <button id="duplicateTemplate" \${template ? "" : "disabled"}>复制</button>
           </div>
         </div>
         <div class="panel-body split">
@@ -408,12 +408,12 @@ function render() {
             \${state.templates.map((item) => \`
               <button class="template-item \${item.id === state.selectedId ? "active" : ""}" data-template-id="\${item.id}">
                 <strong>\${escapeHtml(item.name)}</strong>
-                <span>\${escapeHtml(item.description || item.platform)}</span>
+                <span>\${escapeHtml(item.description || platformLabel(item.platform))}</span>
               </button>
             \`).join("")}
           </div>
           <form id="templateForm" class="stack">
-            \${template ? renderTemplateEditor(template) : "<p>No templates.</p>"}
+            \${template ? renderTemplateEditor(template) : "<p>暂无模板。</p>"}
           </form>
         </div>
       </section>
@@ -427,13 +427,13 @@ function renderLogin() {
   app.innerHTML = \`
     <section class="login-panel">
       <h1>t-sub</h1>
-      <p>Owner access required.</p>
+      <p>请输入站主密码。</p>
       \${state.error ? \`<div class="error">\${escapeHtml(state.error)}</div>\` : ""}
       <form id="loginForm" class="stack">
-        <label>Password
+        <label>密码
           <input id="password" type="password" autocomplete="current-password" autofocus>
         </label>
-        <button class="primary" type="submit">Login</button>
+        <button class="primary" type="submit">登录</button>
       </form>
     </section>
   \`;
@@ -466,14 +466,14 @@ function renderVariableInputs(template) {
 function renderResult() {
   return \`
     <div class="result">
-      <strong>One-time URL expires at \${escapeHtml(new Date(state.result.expiresAt).toLocaleString())}</strong>
+      <strong>一次性链接过期时间：\${escapeHtml(new Date(state.result.expiresAt).toLocaleString())}</strong>
       <div class="result-url">
         <input id="resultUrl" readonly value="\${escapeHtml(state.result.url)}">
-        <button id="copyUrl" type="button">Copy</button>
+        <button id="copyUrl" type="button">复制</button>
       </div>
       <div class="qr-wrap">
-        <canvas id="qr" width="256" height="256" aria-label="QR code"></canvas>
-        <span class="notice">First successful GET returns YAML. Later requests return 410 Gone.</span>
+        <canvas id="qr" width="256" height="256" aria-label="二维码"></canvas>
+        <span class="notice">首次成功拉取会返回 YAML，之后同一链接返回 410 Gone。</span>
       </div>
     </div>
   \`;
@@ -481,24 +481,24 @@ function renderResult() {
 
 function renderTemplateEditor(template) {
   return \`
-    <label>Name
+    <label>名称
       <input id="templateName" value="\${escapeHtml(template.name)}" required>
     </label>
-    <label>Platform
+    <label>平台
       <select id="templatePlatform">
-        \${["android", "nas", "windows", "custom"].map((platform) => \`<option value="\${platform}" \${platform === template.platform ? "selected" : ""}>\${platform}</option>\`).join("")}
+        \${["android", "nas", "windows", "custom"].map((platform) => \`<option value="\${platform}" \${platform === template.platform ? "selected" : ""}>\${platformLabel(platform)}</option>\`).join("")}
       </select>
     </label>
-    <label>Description
+    <label>说明
       <input id="templateDescription" value="\${escapeHtml(template.description || "")}">
     </label>
-    <label>YAML template
+    <label>YAML 模板
       <textarea id="templateBody" class="template-editor" spellcheck="false">\${escapeHtml(template.body)}</textarea>
     </label>
-    <div class="notice">Required placeholders: {{PROXIES_YAML}} and {{PROXY_NAMES_YAML}}. Other uppercase placeholders become variables.</div>
+    <div class="notice">必需占位符：{{PROXIES_YAML}} 和 {{PROXY_NAMES_YAML}}。其他大写占位符会自动变成变量输入项。</div>
     <div class="actions">
-      <button class="primary" type="submit">Save template</button>
-      <button class="danger" id="deleteTemplate" type="button">Delete</button>
+      <button class="primary" type="submit">保存模板</button>
+      <button class="danger" id="deleteTemplate" type="button">删除</button>
     </div>
   \`;
 }
@@ -544,7 +544,7 @@ function bindAppEvents() {
     const id = crypto.randomUUID();
     state.templates.push({
       id,
-      name: "New Template",
+      name: "新模板",
       platform: "custom",
       description: "",
       body: "mixed-port: 7890\\\\nmode: rule\\\\nproxies:\\\\n{{PROXIES_YAML}}\\\\nproxy-groups:\\\\n  - name: Proxy\\\\n    type: select\\\\n    proxies:\\\\n{{PROXY_NAMES_YAML}}\\\\nrules:\\\\n  - MATCH,Proxy\\\\n",
@@ -557,7 +557,7 @@ function bindAppEvents() {
   document.querySelector("#duplicateTemplate").addEventListener("click", () => {
     const template = selectedTemplate();
     if (!template) return;
-    const copy = { ...template, id: crypto.randomUUID(), name: \`\${template.name} Copy\`, revision: 0 };
+    const copy = { ...template, id: crypto.randomUUID(), name: \`\${template.name} 副本\`, revision: 0 };
     state.templates.push(copy);
     state.selectedId = copy.id;
     render();
@@ -568,8 +568,8 @@ function bindAppEvents() {
   const copyButton = document.querySelector("#copyUrl");
   if (copyButton) copyButton.addEventListener("click", async () => {
     await navigator.clipboard.writeText(state.result.url);
-    copyButton.textContent = "Copied";
-    setTimeout(() => { copyButton.textContent = "Copy"; }, 1200);
+    copyButton.textContent = "已复制";
+    setTimeout(() => { copyButton.textContent = "复制"; }, 1200);
   });
 }
 
@@ -622,7 +622,7 @@ async function saveTemplate(event) {
 
 async function deleteTemplate() {
   const template = selectedTemplate();
-  if (!template || !confirm(\`Delete template "\${template.name}"?\`)) return;
+  if (!template || !confirm(\`确认删除模板“\${template.name}”？\`)) return;
   state.error = "";
   try {
     await api(\`/api/templates/\${encodeURIComponent(template.id)}\`, { method: "DELETE" });
@@ -649,6 +649,15 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function platformLabel(platform) {
+  return {
+    android: "安卓",
+    nas: "NAS",
+    windows: "Windows",
+    custom: "自定义",
+  }[platform] || platform;
 }
 
 function drawQr(canvas, text) {
@@ -836,4 +845,3 @@ function gfMul(x, y) {
   return z & 0xff;
 }
 `;
-

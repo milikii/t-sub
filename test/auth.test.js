@@ -4,8 +4,8 @@ import test from "node:test";
 import { createSessionCookie, getSession, verifyOwnerPassword } from "../src/core/auth.js";
 
 test("verifies owner password secret", async () => {
-  assert.equal(await verifyOwnerPassword("alex007", { OWNER_PASSWORD: "alex007" }), true);
-  assert.equal(await verifyOwnerPassword("wrong", { OWNER_PASSWORD: "alex007" }), false);
+  assert.equal(await verifyOwnerPassword("owner-pass", { OWNER_PASSWORD: "owner-pass" }), true);
+  assert.equal(await verifyOwnerPassword("wrong", { OWNER_PASSWORD: "owner-pass" }), false);
 });
 
 test("verifies sha256 owner password hash", async () => {

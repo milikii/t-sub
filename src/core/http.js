@@ -44,7 +44,7 @@ export async function readJson(request) {
   try {
     return await request.json();
   } catch {
-    throw Object.assign(new Error("Request body must be valid JSON."), { status: 400 });
+    throw Object.assign(new Error("请求体必须是有效 JSON。"), { status: 400 });
   }
 }
 
@@ -54,7 +54,7 @@ export function errorResponse(error) {
     {
       error: {
         type: error.name || "Error",
-        message: error.message || "Unexpected error.",
+        message: error.message || "发生未知错误。",
         details: error.details || undefined,
       },
     },
@@ -72,10 +72,9 @@ function statusFromError(error) {
 }
 
 export function notFound() {
-  return json({ error: { type: "NotFound", message: "Not found." } }, { status: 404 });
+  return json({ error: { type: "NotFound", message: "未找到。" } }, { status: 404 });
 }
 
 export function methodNotAllowed() {
-  return json({ error: { type: "MethodNotAllowed", message: "Method not allowed." } }, { status: 405 });
+  return json({ error: { type: "MethodNotAllowed", message: "请求方法不允许。" } }, { status: 405 });
 }
-

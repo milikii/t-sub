@@ -17,7 +17,7 @@ export class OneTimeConfig {
     if (url.pathname === "/consume" && (request.method === "GET" || request.method === "HEAD")) {
       return this.consume(request);
     }
-    return json({ error: { message: "Not found." } }, { status: 404 });
+    return json({ error: { message: "未找到。" } }, { status: 404 });
   }
 
   async create(request) {
@@ -25,7 +25,7 @@ export class OneTimeConfig {
     const now = Date.now();
     const expiresAtMs = Date.parse(body.expiresAt);
     if (!body.configYaml || !Number.isFinite(expiresAtMs) || expiresAtMs <= now) {
-      return json({ error: { message: "Invalid one-time config record." } }, { status: 400 });
+      return json({ error: { message: "一次性配置记录无效。" } }, { status: 400 });
     }
 
     const encrypted = await encryptConfig(body.configYaml, this.env);
@@ -44,17 +44,17 @@ export class OneTimeConfig {
   async consume(request) {
     const record = await this.state.storage.get(RECORD_KEY);
     if (!record) {
-      return text("Not found\n", { status: 404 });
+      return text("未找到\n", { status: 404 });
     }
 
     const now = Date.now();
     if (Date.parse(record.expiresAt) <= now) {
       await this.state.storage.delete(RECORD_KEY);
-      return text("Link expired\n", { status: 410 });
+      return text("链接已过期\n", { status: 410 });
     }
 
     if (record.consumedAt || !record.encryptedConfig || !record.iv) {
-      return text("Link already used\n", { status: 410 });
+      return text("链接已使用\n", { status: 410 });
     }
 
     if (request.method === "HEAD") {
@@ -118,7 +118,7 @@ async function decryptConfig(record, env) {
 async function aesKey(env) {
   const secret = env.SESSION_SECRET || "";
   if (secret.length < 24) {
-    throw new Error("SESSION_SECRET must be set to encrypt one-time configs.");
+    throw new Error("SESSION_SECRET 至少需要 24 个字符才能加密一次性配置。");
   }
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(secret));
   return crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);

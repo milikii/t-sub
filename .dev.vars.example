@@ -1,6 +1,6 @@
 # Cloudflare 连接当前仓库部署时，把这些值配置成 Worker secrets。
-# OWNER_PASSWORD 可以直接填 alex007，或换成你自己的登录密码。
-OWNER_PASSWORD="alex007"
+# OWNER_PASSWORD 填你自己的网页登录密码。
+OWNER_PASSWORD="replace-with-your-login-password"
 
 # 建议部署时替换成 32 位以上随机字符串，例如 32-64 个字母数字。
 SESSION_SECRET="replace-with-a-long-random-secret"

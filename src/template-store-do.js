@@ -23,7 +23,7 @@ export class TemplateStore {
     const id = parts[1] ? decodeURIComponent(parts[1]) : "";
 
     if (parts[0] !== "templates") {
-      return json({ error: { type: "NotFound", message: "Not found." } }, { status: 404 });
+      return json({ error: { type: "NotFound", message: "未找到。" } }, { status: 404 });
     }
 
     await this.ensureSeeded();
@@ -47,7 +47,7 @@ export class TemplateStore {
   async get(id) {
     const template = await this.state.storage.get(templateKey(id));
     if (!template) {
-      const error = new Error("Template not found.");
+      const error = new Error("模板不存在。");
       error.name = "NotFoundError";
       error.status = 404;
       throw error;

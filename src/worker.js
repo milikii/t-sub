@@ -64,7 +64,7 @@ async function login(request, env) {
   const body = await readJson(request);
   const ok = await verifyOwnerPassword(body.password || "", env);
   if (!ok) {
-    return json({ error: { type: "Unauthorized", message: "Wrong password." } }, { status: 401 });
+    return json({ error: { type: "Unauthorized", message: "密码错误。" } }, { status: 401 });
   }
   const ttl = numberFromEnv(env.SESSION_TTL_SECONDS, 86400);
   const cookie = await createSessionCookie(env, ttl);
@@ -138,7 +138,7 @@ async function renderRoute(request, env, url) {
   const expiresAt = new Date(now.getTime() + ttlSeconds * 1000).toISOString();
   const token = makeRandomToken(24);
 
-  if (!env.ONE_TIME_CONFIGS) throw new Error("ONE_TIME_CONFIGS Durable Object binding is missing.");
+  if (!env.ONE_TIME_CONFIGS) throw new Error("缺少 ONE_TIME_CONFIGS Durable Object 绑定。");
   const id = env.ONE_TIME_CONFIGS.idFromName(token);
   const stub = env.ONE_TIME_CONFIGS.get(id);
   const createResponse = await stub.fetch("https://one-time/create", {
@@ -150,7 +150,7 @@ async function renderRoute(request, env, url) {
       expiresAt,
     }),
   });
-  if (!createResponse.ok) throw new Error("Could not create one-time config token.");
+  if (!createResponse.ok) throw new Error("无法创建一次性配置链接。");
 
   const baseUrl = publicBaseUrl(env, url);
   return json({

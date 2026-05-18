@@ -13,10 +13,10 @@ export class NodeValidationError extends Error {
 export function parseNodeLines(nodesText, options = {}) {
   const maxBytes = options.maxBytes ?? 65536;
   if (typeof nodesText !== "string") {
-    throw new NodeValidationError("nodesText must be a string");
+    throw new NodeValidationError("节点内容必须是文本。");
   }
   if (new TextEncoder().encode(nodesText).byteLength > maxBytes) {
-    throw new NodeValidationError(`Node input is too large. Maximum is ${maxBytes} bytes.`);
+    throw new NodeValidationError(`节点内容过大，最大 ${maxBytes} 字节。`);
   }
 
   const lines = nodesText
@@ -25,7 +25,7 @@ export function parseNodeLines(nodesText, options = {}) {
     .filter((item) => item.raw && !item.raw.startsWith("#"));
 
   if (lines.length === 0) {
-    throw new NodeValidationError("Paste at least one node.");
+    throw new NodeValidationError("请至少粘贴一个节点。");
   }
 
   const errors = [];
@@ -42,7 +42,7 @@ export function parseNodeLines(nodesText, options = {}) {
   }
 
   if (errors.length) {
-    throw new NodeValidationError("Some node lines are invalid.", errors);
+    throw new NodeValidationError("部分节点格式无效。", errors);
   }
 
   return dedupeNames(proxies);
@@ -51,12 +51,12 @@ export function parseNodeLines(nodesText, options = {}) {
 export function parseNodeLine(line, lineNumber = 1) {
   const schemeMatch = line.match(/^([a-z0-9+.-]+):\/\//i);
   if (!schemeMatch) {
-    throw new Error(`Line ${lineNumber}: missing node URI scheme.`);
+    throw new Error(`第 ${lineNumber} 行：缺少节点 URI 协议。`);
   }
 
   const scheme = schemeMatch[1].toLowerCase();
   if (!SUPPORTED_SCHEMES.has(scheme)) {
-    throw new Error(`Line ${lineNumber}: unsupported node scheme "${scheme}".`);
+    throw new Error(`第 ${lineNumber} 行：不支持节点协议 "${scheme}"。`);
   }
 
   if (scheme === "ss") return parseShadowsocks(line);
@@ -88,13 +88,13 @@ function parseShadowsocks(line) {
   } else {
     const decoded = decodeMaybeBase64(rest);
     const at = decoded.lastIndexOf("@");
-    if (at < 0) throw new Error("Invalid ss URI: missing host.");
+    if (at < 0) throw new Error("无效的 ss URI：缺少主机。");
     userInfo = decoded.slice(0, at);
     hostPort = decoded.slice(at + 1);
   }
 
   const colon = userInfo.indexOf(":");
-  if (colon < 1) throw new Error("Invalid ss URI: missing cipher or password.");
+  if (colon < 1) throw new Error("无效的 ss URI：缺少加密方式或密码。");
   const cipher = userInfo.slice(0, colon);
   const password = userInfo.slice(colon + 1);
   const { host, port } = splitHostPort(hostPort);
@@ -116,7 +116,7 @@ function parseVmess(line) {
   try {
     data = JSON.parse(decoded);
   } catch {
-    throw new Error("Invalid vmess URI: payload is not JSON.");
+    throw new Error("无效的 vmess URI：内容不是 JSON。");
   }
 
   const network = data.net || "tcp";
@@ -133,7 +133,7 @@ function parseVmess(line) {
   };
 
   if (!proxy.server || !proxy.port || !proxy.uuid) {
-    throw new Error("Invalid vmess URI: missing server, port, or uuid.");
+    throw new Error("无效的 vmess URI：缺少 server、port 或 uuid。");
   }
 
   if (network === "ws") {
@@ -164,7 +164,7 @@ function parseVless(line) {
   if (params.get("flow")) proxy.flow = params.get("flow");
   applyNetworkOptions(proxy, params, network);
   requireHostPort(proxy, "vless");
-  if (!proxy.uuid) throw new Error("Invalid vless URI: missing uuid.");
+  if (!proxy.uuid) throw new Error("无效的 vless URI：缺少 uuid。");
   return proxy;
 }
 
@@ -185,7 +185,7 @@ function parseTrojan(line) {
 
   applyNetworkOptions(proxy, params, network);
   requireHostPort(proxy, "trojan");
-  if (!proxy.password) throw new Error("Invalid trojan URI: missing password.");
+  if (!proxy.password) throw new Error("无效的 trojan URI：缺少密码。");
   return proxy;
 }
 
@@ -202,7 +202,7 @@ function parseHysteria2(line) {
     "skip-cert-verify": params.get("insecure") === "1" || params.get("skip-cert-verify") === "true",
   };
   requireHostPort(proxy, "hysteria2");
-  if (!proxy.password) throw new Error("Invalid hysteria2 URI: missing password.");
+  if (!proxy.password) throw new Error("无效的 hysteria2 URI：缺少密码。");
   return proxy;
 }
 
@@ -231,11 +231,11 @@ function decodeMaybeBase64(value) {
 function splitHostPort(value) {
   const trimmed = value.trim();
   const lastColon = trimmed.lastIndexOf(":");
-  if (lastColon < 1) throw new Error("Missing host or port.");
+  if (lastColon < 1) throw new Error("缺少主机或端口。");
   const host = trimmed.slice(0, lastColon).replace(/^\[/, "").replace(/\]$/, "");
   const port = Number(trimmed.slice(lastColon + 1));
   if (!host || !Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error("Invalid host or port.");
+    throw new Error("主机或端口无效。");
   }
   return { host, port };
 }
@@ -247,7 +247,7 @@ function nodeName(url, fallback) {
 
 function requireHostPort(proxy, type) {
   if (!proxy.server || !Number.isInteger(proxy.port) || proxy.port < 1 || proxy.port > 65535) {
-    throw new Error(`Invalid ${type} URI: missing server or port.`);
+    throw new Error(`无效的 ${type} URI：缺少 server 或 port。`);
   }
 }
 
@@ -263,4 +263,3 @@ function dedupeNames(proxies) {
     };
   });
 }
-

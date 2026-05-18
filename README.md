@@ -41,7 +41,7 @@
 
 | 名称 | 怎么填 |
 | --- | --- |
-| `OWNER_PASSWORD` | 网页登录密码。你要的默认密码可以填 `alex007`。 |
+| `OWNER_PASSWORD` | 网页登录密码。请填写你自己的密码。 |
 | `SESSION_SECRET` | 随机密钥。填一串 32 位以上随机字符，例如 `d5f6a9b4c2e7f1a8d0c3b6e9a4f2c8d1`。 |
 
 如果创建页面没显示变量/Secrets 区域，先创建项目，然后到这里补上两个 secret，再重新部署：
@@ -71,7 +71,7 @@ https://t-sub.<你的账号>.workers.dev
 
 打开这个地址：
 
-1. 密码输入你部署时填写的 `OWNER_PASSWORD`，例如 `alex007`。
+1. 密码输入你部署时填写的 `OWNER_PASSWORD`。
 2. 在节点框里粘贴节点，一行一个。
 3. 选择模板。
 4. 点击生成。

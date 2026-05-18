@@ -11,7 +11,7 @@ export class RenderValidationError extends Error {
 }
 
 export function renderConfig({ template, nodesText, variables = {}, limits = {} }) {
-  if (!template) throw new RenderValidationError("Template is required.");
+  if (!template) throw new RenderValidationError("请选择配置模板。");
   const maxNodesBytes = limits.maxNodesBytes ?? 65536;
   const maxRenderedBytes = limits.maxRenderedBytes ?? 131072;
   const proxies = parseNodeLines(nodesText, { maxBytes: maxNodesBytes });
@@ -36,16 +36,16 @@ export function renderConfig({ template, nodesText, variables = {}, limits = {} 
 
   const unresolved = [...configYaml.matchAll(/{{\s*([A-Z0-9_]+)\s*}}/g)].map((match) => match[1]);
   if (unresolved.length) {
-    throw new RenderValidationError("Template contains unresolved variables.", unresolved);
+    throw new RenderValidationError("模板中还有未填写的变量。", unresolved);
   }
 
   if (!configYaml.includes("proxies:") || !configYaml.includes("proxy-groups:")) {
-    throw new RenderValidationError("Rendered config must include proxies and proxy-groups.");
+    throw new RenderValidationError("生成结果必须包含 proxies 和 proxy-groups。");
   }
 
   const size = byteLength(configYaml);
   if (size > maxRenderedBytes) {
-    throw new RenderValidationError(`Rendered config is too large. Maximum is ${maxRenderedBytes} bytes.`);
+    throw new RenderValidationError(`生成的配置过大，最大 ${maxRenderedBytes} 字节。`);
   }
 
   return {
@@ -60,7 +60,7 @@ function buildVariableValues(template, inputValues) {
   for (const variable of template.variables || []) {
     const value = inputValues[variable.name] ?? variable.defaultValue ?? "";
     if (variable.required && !String(value).trim()) {
-      throw new RenderValidationError(`Missing required variable ${variable.name}.`);
+      throw new RenderValidationError(`缺少必填变量 ${variable.name}。`);
     }
     values[variable.name] = value;
   }
@@ -70,4 +70,3 @@ function buildVariableValues(template, inputValues) {
   }
   return values;
 }
-
