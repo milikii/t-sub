@@ -1,0 +1,25 @@
+name = "t-sub"
+main = "src/worker.js"
+compatibility_date = "2026-05-18"
+
+[[kv_namespaces]]
+binding = "TEMPLATES"
+id = "REPLACE_WITH_TEMPLATES_KV_ID"
+preview_id = "REPLACE_WITH_TEMPLATES_PREVIEW_KV_ID"
+
+[[durable_objects.bindings]]
+name = "ONE_TIME_CONFIGS"
+class_name = "OneTimeConfig"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["OneTimeConfig"]
+
+[vars]
+PUBLIC_BASE_URL = ""
+SESSION_TTL_SECONDS = "86400"
+ONE_TIME_TTL_SECONDS = "300"
+MAX_ONE_TIME_TTL_SECONDS = "900"
+MAX_NODES_BYTES = "65536"
+MAX_RENDERED_BYTES = "131072"
+
