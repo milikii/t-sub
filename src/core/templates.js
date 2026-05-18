@@ -1,21 +1,21 @@
+import { ANDROID_TEMPLATE_BODY, NAS_TEMPLATE_BODY, WINDOWS_TEMPLATE_BODY } from "./default-template-bodies.js";
+
 export const DEFAULT_TEMPLATES = [
   {
     id: "android",
     name: "Android",
     platform: "android",
-    description: "适合手机使用的均衡配置，包含 mixed-port 和单个可选代理组。",
-    body: defaultTemplateBody({ allowLan: false, ipv6: false, logLevel: "warning" }),
-    variables: [
-      { name: "PROFILE_NAME", required: true, defaultValue: "Android" },
-    ],
-    revision: 1,
+    description: "Android mihomo alpha 完整模板，包含 TUN、DNS、规则集和节点分组。",
+    body: ANDROID_TEMPLATE_BODY,
+    variables: [],
+    revision: 2,
   },
   {
     id: "nas",
     name: "NAS",
     platform: "nas",
     description: "适合 NAS 或网关设备使用，允许局域网访问。",
-    body: defaultTemplateBody({ allowLan: true, ipv6: true, logLevel: "info" }),
+    body: NAS_TEMPLATE_BODY,
     variables: [
       { name: "PROFILE_NAME", required: true, defaultValue: "NAS" },
     ],
@@ -26,9 +26,7 @@ export const DEFAULT_TEMPLATES = [
     name: "Windows",
     platform: "windows",
     description: "适合桌面客户端使用，仅在本机开启控制接口。",
-    body: `${defaultTemplateBody({ allowLan: false, ipv6: true, logLevel: "info" })}
-external-controller: 127.0.0.1:9090
-`,
+    body: WINDOWS_TEMPLATE_BODY,
     variables: [
       { name: "PROFILE_NAME", required: true, defaultValue: "Windows" },
     ],
@@ -36,26 +34,8 @@ external-controller: 127.0.0.1:9090
   },
 ];
 
-function defaultTemplateBody({ allowLan, ipv6, logLevel }) {
-  return `# {{PROFILE_NAME}} 生成于 {{GENERATED_AT}}
-mixed-port: 7890
-allow-lan: ${allowLan}
-ipv6: ${ipv6}
-mode: rule
-log-level: ${logLevel}
-
-proxies:
-{{PROXIES_YAML}}
-
-proxy-groups:
-  - name: Proxy
-    type: select
-    proxies:
-{{PROXY_NAMES_YAML}}
-
-rules:
-  - MATCH,Proxy
-`;
+export function builtInTemplateById(id) {
+  return DEFAULT_TEMPLATES.find((template) => template.id === id) || null;
 }
 
 export function normalizeTemplate(input, existing = null) {

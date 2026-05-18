@@ -28,6 +28,49 @@ test("worker login, render, and one-time subscription flow", async () => {
   assert.equal(templates.status, 200);
   assert.ok((await templates.json()).templates.some((template) => template.id === "android"));
 
+  const overwriteAndroid = await worker.fetch(
+    new Request("http://local.test/api/templates/android", {
+      method: "PUT",
+      headers: {
+        cookie,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Android",
+        platform: "android",
+        description: "temporary",
+        body: [
+          "mixed-port: 7890",
+          "proxies:",
+          "{{PROXIES_YAML}}",
+          "proxy-groups:",
+          "  - name: Proxy",
+          "    type: select",
+          "    proxies:",
+          "{{PROXY_NAMES_YAML}}",
+          "rules:",
+          "  - MATCH,Proxy",
+          "",
+        ].join("\n"),
+        variables: [],
+      }),
+    }),
+    env,
+  );
+  assert.equal(overwriteAndroid.status, 200);
+
+  const resetAndroid = await worker.fetch(
+    new Request("http://local.test/api/templates/android/reset", {
+      method: "POST",
+      headers: { cookie },
+    }),
+    env,
+  );
+  assert.equal(resetAndroid.status, 200);
+  const resetBody = await resetAndroid.json();
+  assert.match(resetBody.template.body, /external-ui-url:/);
+  assert.match(resetBody.template.body, /MATCH,🚀 节点选择/);
+
   const customTemplate = await worker.fetch(
     new Request("http://local.test/api/templates", {
       method: "POST",
@@ -112,7 +155,7 @@ test("worker login, render, and one-time subscription flow", async () => {
   const yaml = await firstGet.text();
   assert.match(yaml, /proxies:/);
   assert.match(yaml, /name: "Sample"/);
-  assert.match(yaml, /MATCH,Proxy/);
+  assert.match(yaml, /MATCH,🚀 节点选择/);
 
   const secondGet = await worker.fetch(new Request(body.url), env);
   assert.equal(secondGet.status, 200);

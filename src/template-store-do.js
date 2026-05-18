@@ -1,5 +1,5 @@
 import { errorResponse, json, methodNotAllowed, readJson } from "./core/http.js";
-import { DEFAULT_TEMPLATES, normalizeTemplate, withTemplateTimestamps } from "./core/templates.js";
+import { DEFAULT_TEMPLATES, builtInTemplateById, normalizeTemplate, withTemplateTimestamps } from "./core/templates.js";
 
 const TEMPLATE_PREFIX = "template:";
 const SEEDED_KEY = "templates:seeded:v1";
@@ -29,10 +29,11 @@ export class TemplateStore {
     await this.ensureSeeded();
 
     if (request.method === "GET" && !id) return this.list();
-    if (request.method === "GET" && id) return this.get(id);
+    if (request.method === "GET" && id && !parts[2]) return this.get(id);
+    if (request.method === "POST" && id && parts[2] === "reset") return this.reset(id);
     if (request.method === "POST" && !id) return this.save(await readJson(request));
-    if (request.method === "PUT" && id) return this.save({ ...(await readJson(request)), id });
-    if (request.method === "DELETE" && id) return this.delete(id);
+    if (request.method === "PUT" && id && !parts[2]) return this.save({ ...(await readJson(request)), id });
+    if (request.method === "DELETE" && id && !parts[2]) return this.delete(id);
 
     return methodNotAllowed();
   }
@@ -65,6 +66,20 @@ export class TemplateStore {
   async delete(id) {
     await this.state.storage.delete(templateKey(id));
     return json({ ok: true });
+  }
+
+  async reset(id) {
+    const builtIn = builtInTemplateById(id);
+    if (!builtIn) {
+      const error = new Error("没有这个内置模板。");
+      error.name = "NotFoundError";
+      error.status = 404;
+      throw error;
+    }
+    const existing = await this.state.storage.get(templateKey(id));
+    const template = normalizeTemplate(builtIn, existing);
+    await this.state.storage.put(templateKey(template.id), template);
+    return json({ template });
   }
 
   async ensureSeeded() {

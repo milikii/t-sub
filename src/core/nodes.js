@@ -73,6 +73,7 @@ function parseShadowsocks(line) {
   if (hashIndex >= 0) rest = rest.slice(0, hashIndex);
 
   const queryIndex = rest.indexOf("?");
+  const params = queryIndex >= 0 ? new URLSearchParams(rest.slice(queryIndex + 1)) : new URLSearchParams();
   if (queryIndex >= 0) rest = rest.slice(0, queryIndex);
 
   let userInfo;
@@ -99,7 +100,7 @@ function parseShadowsocks(line) {
   const password = userInfo.slice(colon + 1);
   const { host, port } = splitHostPort(hostPort);
 
-  return {
+  const proxy = {
     name,
     type: "ss",
     server: host,
@@ -107,6 +108,9 @@ function parseShadowsocks(line) {
     cipher,
     password,
   };
+  applyCommonUrlOptions(proxy, params);
+  applyShadowsocksPlugin(proxy, params);
+  return proxy;
 }
 
 function parseVmess(line) {
@@ -131,6 +135,13 @@ function parseVmess(line) {
     tls: data.tls === "tls" || data.tls === true,
     network,
   };
+  if (data.sni) proxy.servername = data.sni;
+  if (data.fp) proxy["client-fingerprint"] = data.fp;
+  if (data.alpn) proxy.alpn = splitList(data.alpn);
+  if (data.allowInsecure === true || data.allowInsecure === "1" || data.skipCertVerify === true) {
+    proxy["skip-cert-verify"] = true;
+  }
+  if (data.udp === true || data.udp === "1") proxy.udp = true;
 
   if (!proxy.server || !proxy.port || !proxy.uuid) {
     throw new Error("无效的 vmess URI：缺少 server、port 或 uuid。");
@@ -150,18 +161,27 @@ function parseVless(line) {
   const url = new URL(line);
   const params = url.searchParams;
   const network = params.get("type") || "tcp";
+  const security = params.get("security") || "";
   const proxy = {
     name: nodeName(url, "vless"),
     type: "vless",
     server: url.hostname,
     port: Number(url.port),
     uuid: safeDecodeURIComponent(url.username),
-    tls: params.get("security") === "tls" || params.get("security") === "reality",
-    servername: params.get("sni") || params.get("serverName") || undefined,
+    tls: security === "tls" || security === "reality",
+    servername: firstParam(params, "sni", "servername", "serverName", "peer") || undefined,
     network,
   };
 
   if (params.get("flow")) proxy.flow = params.get("flow");
+  if (security === "reality") {
+    const realityOpts = compactObject({
+      "public-key": firstParam(params, "pbk", "publicKey", "public-key"),
+      "short-id": firstParam(params, "sid", "shortId", "short-id"),
+    });
+    if (Object.keys(realityOpts).length) proxy["reality-opts"] = realityOpts;
+  }
+  applyCommonUrlOptions(proxy, params);
   applyNetworkOptions(proxy, params, network);
   requireHostPort(proxy, "vless");
   if (!proxy.uuid) throw new Error("无效的 vless URI：缺少 uuid。");
@@ -178,11 +198,11 @@ function parseTrojan(line) {
     server: url.hostname,
     port: Number(url.port),
     password: safeDecodeURIComponent(url.username),
-    sni: params.get("sni") || params.get("peer") || undefined,
-    skipCertVerify: params.get("allowInsecure") === "1" || params.get("skip-cert-verify") === "true",
+    sni: firstParam(params, "sni", "servername", "serverName", "peer") || undefined,
     network,
   };
 
+  applyCommonUrlOptions(proxy, params);
   applyNetworkOptions(proxy, params, network);
   requireHostPort(proxy, "trojan");
   if (!proxy.password) throw new Error("无效的 trojan URI：缺少密码。");
@@ -198,9 +218,13 @@ function parseHysteria2(line) {
     server: url.hostname,
     port: Number(url.port),
     password: safeDecodeURIComponent(url.username),
-    sni: params.get("sni") || undefined,
-    "skip-cert-verify": params.get("insecure") === "1" || params.get("skip-cert-verify") === "true",
+    sni: firstParam(params, "sni", "servername", "serverName") || undefined,
   };
+  applyCommonUrlOptions(proxy, params);
+  if (firstParam(params, "obfs")) proxy.obfs = firstParam(params, "obfs");
+  if (firstParam(params, "obfs-password", "obfsPassword")) {
+    proxy["obfs-password"] = firstParam(params, "obfs-password", "obfsPassword");
+  }
   requireHostPort(proxy, "hysteria2");
   if (!proxy.password) throw new Error("无效的 hysteria2 URI：缺少密码。");
   return proxy;
@@ -210,14 +234,81 @@ function applyNetworkOptions(proxy, params, network) {
   if (network === "ws") {
     proxy["ws-opts"] = {
       path: params.get("path") || "/",
-      headers: params.get("host") ? { Host: params.get("host") } : undefined,
+      headers: firstParam(params, "host", "Host") ? { Host: firstParam(params, "host", "Host") } : undefined,
     };
   }
   if (network === "grpc") {
     proxy["grpc-opts"] = {
-      "grpc-service-name": params.get("serviceName") || params.get("service") || "",
+      "grpc-service-name": firstParam(params, "serviceName", "service") || "",
     };
   }
+}
+
+function applyCommonUrlOptions(proxy, params) {
+  const alpn = firstParam(params, "alpn");
+  if (alpn) proxy.alpn = splitList(alpn);
+
+  const fingerprint = firstParam(params, "fp", "fingerprint", "client-fingerprint");
+  if (fingerprint) proxy["client-fingerprint"] = fingerprint;
+
+  const packetEncoding = firstParam(params, "packetEncoding", "packet-encoding");
+  if (packetEncoding) proxy["packet-encoding"] = packetEncoding;
+
+  const skipCertVerify = booleanParam(params, "allowInsecure", "insecure", "skip-cert-verify");
+  if (skipCertVerify !== undefined) proxy["skip-cert-verify"] = skipCertVerify;
+
+  const udp = booleanParam(params, "udp");
+  if (udp !== undefined) proxy.udp = udp;
+}
+
+function applyShadowsocksPlugin(proxy, params) {
+  const plugin = firstParam(params, "plugin");
+  if (!plugin) return;
+
+  const [rawName, ...segments] = plugin.split(";");
+  const pluginName = rawName === "obfs-local" ? "obfs" : rawName;
+  const opts = {};
+  for (const segment of segments) {
+    if (!segment) continue;
+    const separator = segment.indexOf("=");
+    if (separator < 0) {
+      opts[segment] = true;
+      continue;
+    }
+    const rawKey = segment.slice(0, separator);
+    const key = rawKey === "obfs" ? "mode" : rawKey === "obfs-host" ? "host" : rawKey;
+    opts[key] = segment.slice(separator + 1);
+  }
+
+  proxy.plugin = pluginName;
+  if (Object.keys(opts).length) proxy["plugin-opts"] = opts;
+}
+
+function firstParam(params, ...keys) {
+  for (const key of keys) {
+    const value = params.get(key);
+    if (value) return value;
+  }
+  return "";
+}
+
+function booleanParam(params, ...keys) {
+  const value = firstParam(params, ...keys);
+  if (!value) return undefined;
+  if (/^(1|true|yes)$/i.test(value)) return true;
+  if (/^(0|false|no)$/i.test(value)) return false;
+  return undefined;
+}
+
+function splitList(value) {
+  return String(value)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function compactObject(value) {
+  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== ""));
 }
 
 function decodeMaybeBase64(value) {

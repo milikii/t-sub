@@ -2,7 +2,7 @@ import { APP_JS, INDEX_HTML, STYLES_CSS } from "./assets.js";
 import { asset, errorResponse, html, json, methodNotAllowed, notFound, readJson } from "./core/http.js";
 import { clearSessionCookie, createSessionCookie, getSession, requireOwner, verifyOwnerPassword } from "./core/auth.js";
 import { makeRandomToken } from "./core/encoding.js";
-import { deleteTemplate, getTemplate, listTemplates, saveTemplate } from "./core/template-store.js";
+import { deleteTemplate, getTemplate, listTemplates, resetTemplate, saveTemplate } from "./core/template-store.js";
 import { renderConfig } from "./core/render.js";
 import { OneTimeConfig } from "./one-time-config.js";
 import { TemplateStore } from "./template-store-do.js";
@@ -93,6 +93,7 @@ async function logout(request) {
 async function templatesRoute(request, env, url) {
   const parts = url.pathname.split("/").filter(Boolean);
   const id = parts[2] ? decodeURIComponent(parts[2]) : "";
+  const action = parts[3] || "";
 
   if (request.method === "GET" && !id) {
     return json({ templates: await listTemplates(env) });
@@ -104,13 +105,18 @@ async function templatesRoute(request, env, url) {
     return json({ template });
   }
 
-  if (request.method === "PUT" && id) {
+  if (request.method === "POST" && id && action === "reset") {
+    const template = await resetTemplate(env, id);
+    return json({ template });
+  }
+
+  if (request.method === "PUT" && id && !action) {
     const body = await readJson(request);
     const template = await saveTemplate(env, { ...body, id });
     return json({ template });
   }
 
-  if (request.method === "DELETE" && id) {
+  if (request.method === "DELETE" && id && !action) {
     await deleteTemplate(env, id);
     return json({ ok: true });
   }

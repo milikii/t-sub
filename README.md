@@ -133,6 +133,16 @@ Workers & Pages -> t-sub -> Settings
 
 ## 模板占位符
 
+仓库里的内置默认模板在：
+
+```text
+src/core/default-template-bodies.js
+```
+
+Android 内置模板已经是完整 mihomo alpha 配置，不需要手写 `{{PROXIES_YAML}}`。系统会自动把你粘贴的节点插入顶层 `proxies:` 段，并保留模板里的兜底节点。
+
+线上已经保存过的模板不会被仓库里的新默认模板强行覆盖。代码部署后，打开网页进入模板编辑区，选择 `Android`，点击 `恢复内置模板`，就会把线上保存的 Android 模板同步成仓库里的新版内置模板。
+
 节点注入有两种方式：
 
 ```text
@@ -196,6 +206,18 @@ MAX_ONE_TIME_TTL_SECONDS=1800
 ```
 
 不建议设置太长。链接被 mihomo 拉取前，配置会短期保存在 Durable Object 中。
+
+### mihomo 提示 `cannot unmarshal !!str`
+
+如果错误里看到 `链接已使用` 或 `链接已过期`，说明客户端拿到的不是 YAML，而是一次性链接失效后的提示文本。重新生成一个链接再导入。
+
+当前默认设置允许首次拉取后的 20 秒内最多返回 2 次 YAML，用来兼容客户端导入时的二次请求。超过这个次数或时间后，链接仍会失效。
+
+### 仓库更新后 Cloudflare 会同步吗
+
+会。你 push 到 `master` 后，Cloudflare Git 集成会自动重新部署代码。
+
+但模板内容保存在 Durable Object 里，不会因为部署自动覆盖。需要同步内置模板时，在网页里点击 `恢复内置模板`。
 
 ### 想换密码
 

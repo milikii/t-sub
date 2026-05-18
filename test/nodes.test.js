@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseNodeLines } from "../src/core/nodes.js";
+
+import { parseNodeLine, parseNodeLines } from "../src/core/nodes.js";
 
 test("parses common node URI schemes", () => {
   const vmessPayload = Buffer.from(JSON.stringify({
@@ -41,4 +42,36 @@ test("reports invalid lines with line numbers", () => {
       return true;
     },
   );
+});
+
+test("parses vless reality mihomo options", () => {
+  const proxy = parseNodeLine(
+    "vless://00000000-0000-4000-8000-000000000000@example.com:443?security=reality&type=tcp&sni=www.microsoft.com&fp=chrome&pbk=public-key&sid=abcd&flow=xtls-rprx-vision&alpn=h2,http/1.1&udp=1#home",
+  );
+
+  assert.equal(proxy.name, "home");
+  assert.equal(proxy.type, "vless");
+  assert.equal(proxy.tls, true);
+  assert.equal(proxy.servername, "www.microsoft.com");
+  assert.equal(proxy["client-fingerprint"], "chrome");
+  assert.deepEqual(proxy["reality-opts"], {
+    "public-key": "public-key",
+    "short-id": "abcd",
+  });
+  assert.deepEqual(proxy.alpn, ["h2", "http/1.1"]);
+  assert.equal(proxy.udp, true);
+});
+
+test("parses shadowsocks sip002 plugin options", () => {
+  const proxy = parseNodeLine(
+    "ss://aes-128-gcm:pass@example.com:8388?plugin=obfs-local%3Bobfs%3Dhttp%3Bobfs-host%3Dedge.example&udp=true#ss",
+  );
+
+  assert.equal(proxy.name, "ss");
+  assert.equal(proxy.plugin, "obfs");
+  assert.deepEqual(proxy["plugin-opts"], {
+    mode: "http",
+    host: "edge.example",
+  });
+  assert.equal(proxy.udp, true);
 });

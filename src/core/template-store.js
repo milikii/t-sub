@@ -23,6 +23,13 @@ export async function deleteTemplate(env, id) {
   });
 }
 
+export async function resetTemplate(env, id) {
+  const data = await templateStoreRequest(env, `/templates/${encodeURIComponent(id)}/reset`, {
+    method: "POST",
+  });
+  return data.template;
+}
+
 async function templateStoreRequest(env, path, init = {}) {
   if (!env.TEMPLATE_STORE) {
     throw new Error("缺少 TEMPLATE_STORE Durable Object 绑定。");

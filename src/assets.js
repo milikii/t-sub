@@ -313,6 +313,7 @@ const state = {
 };
 
 const RESERVED_VARS = new Set(["PROXIES_YAML", "PROXY_NAMES_YAML", "GENERATED_AT", "NODE_COUNT"]);
+const BUILT_IN_TEMPLATE_IDS = new Set(["android", "nas", "windows"]);
 const app = document.querySelector("#app");
 
 init();
@@ -480,6 +481,7 @@ function renderResult() {
 }
 
 function renderTemplateEditor(template) {
+  const canReset = BUILT_IN_TEMPLATE_IDS.has(template.id);
   return \`
     <label>名称
       <input id="templateName" value="\${escapeHtml(template.name)}" required>
@@ -498,6 +500,7 @@ function renderTemplateEditor(template) {
     <div class="notice">节点注入：可写 {{PROXIES_YAML}} 精确指定位置；如果不写，系统会自动把节点插入顶层 proxies: 段。{{PROXY_NAMES_YAML}} 只在需要显式列出节点名称时使用。</div>
     <div class="actions">
       <button class="primary" type="submit">保存模板</button>
+      <button id="resetTemplate" type="button" \${canReset ? "" : "disabled"}>恢复内置模板</button>
       <button class="danger" id="deleteTemplate" type="button">删除</button>
     </div>
   \`;
@@ -565,6 +568,8 @@ function bindAppEvents() {
   document.querySelector("#templateForm").addEventListener("submit", saveTemplate);
   const deleteButton = document.querySelector("#deleteTemplate");
   if (deleteButton) deleteButton.addEventListener("click", deleteTemplate);
+  const resetButton = document.querySelector("#resetTemplate");
+  if (resetButton) resetButton.addEventListener("click", resetTemplate);
   const copyButton = document.querySelector("#copyUrl");
   if (copyButton) copyButton.addEventListener("click", async () => {
     await navigator.clipboard.writeText(state.result.url);
@@ -628,6 +633,19 @@ async function deleteTemplate() {
     await api(\`/api/templates/\${encodeURIComponent(template.id)}\`, { method: "DELETE" });
     state.templates = state.templates.filter((item) => item.id !== template.id);
     state.selectedId = state.templates[0]?.id || "";
+  } catch {}
+  render();
+}
+
+async function resetTemplate() {
+  const template = selectedTemplate();
+  if (!template || !BUILT_IN_TEMPLATE_IDS.has(template.id)) return;
+  if (!confirm(\`恢复内置模板会覆盖“\${template.name}”当前内容，确认继续？\`)) return;
+  state.error = "";
+  try {
+    const saved = await api(\`/api/templates/\${encodeURIComponent(template.id)}/reset\`, { method: "POST" });
+    state.templates = state.templates.map((item) => item.id === saved.template.id ? saved.template : item);
+    state.selectedId = saved.template.id;
   } catch {}
   render();
 }
