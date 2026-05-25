@@ -313,6 +313,10 @@ const state = {
 };
 
 const RESERVED_VARS = new Set(["PROXIES_YAML", "PROXY_NAMES_YAML", "GENERATED_AT", "NODE_COUNT"]);
+const REQUIRED_VARS = new Set(["PROFILE_NAME", "TAILSCALE_AUTH_KEY"]);
+const VARIABLE_ALIASES = new Map([
+  ["TAIL_SCALE_AUTH_KEY", "TAILSCALE_AUTH_KEY"],
+]);
 const BUILT_IN_TEMPLATE_IDS = new Set(["android", "nas", "windows"]);
 const app = document.querySelector("#app");
 
@@ -651,14 +655,23 @@ async function resetTemplate() {
 }
 
 function extractVariables(body) {
-  const names = [...body.matchAll(/{{\\s*([A-Z0-9_]+)\\s*}}/g)]
-    .map((match) => match[1])
+  const names = [...body.matchAll(/{{\\s*([A-Z0-9_]+)\\s*}}/gi)]
+    .map((match) => normalizeVariableName(match[1]))
     .filter((name) => !RESERVED_VARS.has(name));
   return [...new Set(names)].map((name) => ({
     name,
-    required: name === "PROFILE_NAME",
+    required: REQUIRED_VARS.has(name),
     defaultValue: name === "PROFILE_NAME" ? "mihomo" : "",
   }));
+}
+
+function normalizeVariableName(value) {
+  const normalized = String(value || "")
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/[^A-Z0-9_]/gi, "_")
+    .toUpperCase();
+  return VARIABLE_ALIASES.get(normalized) || normalized;
 }
 
 function escapeHtml(value) {

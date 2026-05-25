@@ -1,36 +1,39 @@
 import { ANDROID_TEMPLATE_BODY, NAS_TEMPLATE_BODY, WINDOWS_TEMPLATE_BODY } from "./default-template-bodies.js";
+import { extractTemplateVariableNames, hasTemplatePlaceholder, normalizeVariableName } from "./template-vars.js";
 
 export const DEFAULT_TEMPLATES = [
   {
     id: "android",
     name: "Android",
     platform: "android",
-    description: "Android mihomo alpha 完整模板，包含 TUN、DNS、规则集和节点分组。",
+    description: "Android mihomo alpha 完整模板，包含 TUN、DNS、FCM、US/JP 分组和 Tailscale 回家。",
     body: ANDROID_TEMPLATE_BODY,
-    variables: [],
-    revision: 2,
+    variables: [
+      { name: "TAILSCALE_AUTH_KEY", required: true, defaultValue: "" },
+    ],
+    revision: 3,
   },
   {
     id: "nas",
     name: "NAS",
     platform: "nas",
-    description: "适合 NAS 或网关设备使用，允许局域网访问。",
+    description: "适合 Debian NAS 或网关设备使用，仅允许私网/Tailscale 网段访问本机代理，不包含 Tailscale 出站。",
     body: NAS_TEMPLATE_BODY,
     variables: [
       { name: "PROFILE_NAME", required: true, defaultValue: "NAS" },
     ],
-    revision: 1,
+    revision: 2,
   },
   {
     id: "windows",
     name: "Windows",
     platform: "windows",
-    description: "适合桌面客户端使用，仅在本机开启控制接口。",
+    description: "适合桌面客户端使用，仅在本机开启控制接口，不包含 Tailscale 出站。",
     body: WINDOWS_TEMPLATE_BODY,
     variables: [
       { name: "PROFILE_NAME", required: true, defaultValue: "Windows" },
     ],
-    revision: 1,
+    revision: 2,
   },
 ];
 
@@ -59,7 +62,7 @@ export function normalizeTemplate(input, existing = null) {
     platform,
     description: String(input.description || ""),
     body,
-    variables: normalizeVariables(input.variables),
+    variables: normalizeVariables(input.variables, body),
     createdAt: existing?.createdAt || now,
     updatedAt: now,
     revision: Number(existing?.revision || input.revision || 0) + 1,
@@ -67,18 +70,46 @@ export function normalizeTemplate(input, existing = null) {
 }
 
 function hasProxyInjectionPoint(body) {
-  return body.includes("{{PROXIES_YAML}}") || /^proxies\s*:/m.test(body);
+  return hasTemplatePlaceholder(body, "PROXIES_YAML") || /^proxies\s*:/m.test(body);
 }
 
-function normalizeVariables(value) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => ({
-      name: String(item.name || "").trim().replace(/[^A-Z0-9_]/gi, "_").toUpperCase(),
-      required: Boolean(item.required),
-      defaultValue: item.defaultValue == null ? "" : String(item.defaultValue),
-    }))
-    .filter((item) => item.name);
+function normalizeVariables(value, body = "") {
+  const bodyVariableNames = extractVariableNames(body);
+  const bodyVariableNameSet = new Set(bodyVariableNames);
+  const variables = new Map();
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const name = normalizeVariableName(item.name);
+      if (!name) continue;
+      if (!bodyVariableNameSet.has(name)) continue;
+      variables.set(name, variableRecord(name, item.required, item.defaultValue));
+    }
+  }
+
+  for (const name of bodyVariableNames) {
+    if (!variables.has(name)) {
+      variables.set(name, variableRecord(name, false, undefined));
+    }
+  }
+
+  return [...variables.values()];
+}
+
+const requiredVariableNames = new Set(["PROFILE_NAME", "TAILSCALE_AUTH_KEY"]);
+function variableRecord(name, required, defaultValue) {
+  return {
+    name,
+    required: Boolean(required) || requiredVariableNames.has(name),
+    defaultValue: defaultValue == null ? defaultVariableValue(name) : String(defaultValue),
+  };
+}
+
+function defaultVariableValue(name) {
+  return name === "PROFILE_NAME" ? "mihomo" : "";
+}
+
+function extractVariableNames(body) {
+  return extractTemplateVariableNames(body);
 }
 
 export function withTemplateTimestamps(template) {

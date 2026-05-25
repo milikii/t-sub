@@ -70,6 +70,30 @@ test("worker login, render, and one-time subscription flow", async () => {
   const resetBody = await resetAndroid.json();
   assert.match(resetBody.template.body, /external-ui-url:/);
   assert.match(resetBody.template.body, /MATCH,🚀 节点选择/);
+  assert.deepEqual(resetBody.template.variables, [
+    { name: "TAILSCALE_AUTH_KEY", required: true, defaultValue: "" },
+  ]);
+
+  const saveAndroidWithoutVariables = await worker.fetch(
+    new Request("http://local.test/api/templates/android", {
+      method: "PUT",
+      headers: {
+        cookie,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Android",
+        platform: "android",
+        description: "saved without variables",
+        body: resetBody.template.body,
+      }),
+    }),
+    env,
+  );
+  assert.equal(saveAndroidWithoutVariables.status, 200);
+  assert.deepEqual((await saveAndroidWithoutVariables.json()).template.variables, [
+    { name: "TAILSCALE_AUTH_KEY", required: true, defaultValue: "" },
+  ]);
 
   const customTemplate = await worker.fetch(
     new Request("http://local.test/api/templates", {
@@ -117,6 +141,94 @@ test("worker login, render, and one-time subscription flow", async () => {
   assert.equal(updateTemplate.status, 200);
   assert.equal((await updateTemplate.json()).template.name, "Custom Updated");
 
+  const dropRemovedVariables = await worker.fetch(
+    new Request(`http://local.test/api/templates/${createdTemplate.id}`, {
+      method: "PUT",
+      headers: {
+        cookie,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        ...createdTemplate,
+        body: [
+          "mixed-port: 7890",
+          "proxies:",
+          "{{PROXIES_YAML}}",
+          "proxy-groups:",
+          "  - name: Proxy",
+          "    type: select",
+          "    proxies:",
+          "{{PROXY_NAMES_YAML}}",
+          "rules:",
+          "  - MATCH,Proxy",
+          "",
+        ].join("\n"),
+        variables: [
+          { name: "REMOVED_SECRET", required: true },
+        ],
+      }),
+    }),
+    env,
+  );
+  assert.equal(dropRemovedVariables.status, 200);
+  assert.deepEqual((await dropRemovedVariables.json()).template.variables, []);
+
+  const normalizedTemplate = await worker.fetch(
+    new Request("http://local.test/api/templates", {
+      method: "POST",
+      headers: {
+        cookie,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Normalized",
+        platform: "custom",
+        body: [
+          "mixed-port: 7890",
+          "proxies:",
+          "{{proxiesYaml}}",
+          "proxy-groups:",
+          "  - name: Proxy",
+          "    type: select",
+          "    proxies:",
+          "{{proxyNamesYaml}}",
+          "rules:",
+          "  - DOMAIN,example.test,{{profileName}}",
+          "  - MATCH,Proxy",
+          "",
+        ].join("\n"),
+      }),
+    }),
+    env,
+  );
+  assert.equal(normalizedTemplate.status, 200);
+  const normalizedTemplateBody = (await normalizedTemplate.json()).template;
+  assert.deepEqual(normalizedTemplateBody.variables, [
+    { name: "PROFILE_NAME", required: true, defaultValue: "mihomo" },
+  ]);
+
+  const renderNormalizedTemplate = await worker.fetch(
+    new Request("http://local.test/api/render", {
+      method: "POST",
+      headers: {
+        cookie,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        templateId: normalizedTemplateBody.id,
+        nodesText: "ss://YWVzLTEyOC1nY206cGFzc0BleGFtcGxlLmNvbTo4Mzg4#Normalized",
+        variables: { profileName: "Proxy" },
+      }),
+    }),
+    env,
+  );
+  assert.equal(renderNormalizedTemplate.status, 200);
+  const normalizedRenderBody = await renderNormalizedTemplate.json();
+  const normalizedYaml = await (await worker.fetch(new Request(normalizedRenderBody.url), env)).text();
+  assert.match(normalizedYaml, /proxies:\n  - name: "Normalized"/);
+  assert.match(normalizedYaml, /    proxies:\n      - "Normalized"/);
+  assert.match(normalizedYaml, /DOMAIN,example\.test,Proxy/);
+
   const deleteTemplate = await worker.fetch(
     new Request(`http://local.test/api/templates/${createdTemplate.id}`, {
       method: "DELETE",
@@ -136,7 +248,7 @@ test("worker login, render, and one-time subscription flow", async () => {
       body: JSON.stringify({
         templateId: "android",
         nodesText: "ss://YWVzLTEyOC1nY206cGFzc0BleGFtcGxlLmNvbTo4Mzg4#Sample",
-        variables: { PROFILE_NAME: "E2E" },
+        variables: { profileName: "E2E", tailScaleAuthKey: "tskey-auth-test" },
         ttlSeconds: 60,
       }),
     }),
@@ -155,6 +267,7 @@ test("worker login, render, and one-time subscription flow", async () => {
   const yaml = await firstGet.text();
   assert.match(yaml, /proxies:/);
   assert.match(yaml, /name: "Sample"/);
+  assert.match(yaml, /auth-key: "tskey-auth-test"/);
   assert.match(yaml, /MATCH,🚀 节点选择/);
 
   const secondGet = await worker.fetch(new Request(body.url), env);
@@ -187,7 +300,7 @@ test("one-time subscription can disable grace replay", async () => {
       body: JSON.stringify({
         templateId: "android",
         nodesText: "ss://YWVzLTEyOC1nY206cGFzc0BleGFtcGxlLmNvbTo4Mzg4#Sample",
-        variables: { PROFILE_NAME: "E2E" },
+        variables: { PROFILE_NAME: "E2E", TAILSCALE_AUTH_KEY: "tskey-auth-test" },
       }),
     }),
     env,

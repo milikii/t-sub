@@ -1,5 +1,6 @@
 import { byteLength } from "./encoding.js";
 import { parseNodeLines } from "./nodes.js";
+import { hasTemplatePlaceholder, normalizeVariableName, replaceTemplatePlaceholders } from "./template-vars.js";
 import { objectToYaml, yamlScalar } from "./yaml.js";
 
 export class RenderValidationError extends Error {
@@ -30,14 +31,14 @@ export function renderConfig({ template, nodesText, variables = {}, limits = {} 
   };
 
   let configYaml = template.body;
-  if (!configYaml.includes("{{PROXIES_YAML}}")) {
+  if (!hasTemplatePlaceholder(configYaml, "PROXIES_YAML")) {
     configYaml = insertProxiesIntoTopLevelSection(configYaml, proxiesYaml);
   }
-  for (const [key, value] of Object.entries(replacements)) {
-    configYaml = configYaml.replaceAll(`{{${key}}}`, String(value));
-  }
+  configYaml = replaceTemplatePlaceholders(configYaml, replacements);
 
-  const unresolved = [...configYaml.matchAll(/{{\s*([A-Z0-9_]+)\s*}}/g)].map((match) => match[1]);
+  const unresolved = [...configYaml.matchAll(/{{\s*([A-Z0-9_]+)\s*}}/gi)].map((match) =>
+    normalizeVariableName(match[1]),
+  );
   if (unresolved.length) {
     throw new RenderValidationError("模板中还有未填写的变量。", unresolved);
   }
@@ -77,16 +78,17 @@ function insertProxiesIntoTopLevelSection(body, proxiesYaml) {
 
 function buildVariableValues(template, inputValues) {
   const values = {};
-  for (const variable of template.variables || []) {
-    const value = inputValues[variable.name] ?? variable.defaultValue ?? "";
-    if (variable.required && !String(value).trim()) {
-      throw new RenderValidationError(`缺少必填变量 ${variable.name}。`);
-    }
-    values[variable.name] = value;
-  }
   for (const [key, value] of Object.entries(inputValues || {})) {
-    const normalized = key.trim().replace(/[^A-Z0-9_]/gi, "_").toUpperCase();
+    const normalized = normalizeVariableName(key);
     values[normalized] = value;
+  }
+  for (const variable of template.variables || []) {
+    const name = normalizeVariableName(variable.name);
+    const value = values[name] ?? variable.defaultValue ?? "";
+    if (variable.required && !String(value).trim()) {
+      throw new RenderValidationError(`缺少必填变量 ${name}。`);
+    }
+    values[name] = value;
   }
   return values;
 }

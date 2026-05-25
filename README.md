@@ -141,7 +141,44 @@ src/core/default-template-bodies.js
 
 Android 内置模板已经是完整 mihomo alpha 配置，不需要手写 `{{PROXIES_YAML}}`。系统会自动把你粘贴的节点插入顶层 `proxies:` 段，并保留模板里的兜底节点。
 
+三端内置模板现在按用途分开：
+
+- Android：开启 TUN、fake-ip DNS、FCM 规则、US/JP 分组，并内置一个 `type: tailscale` 的 `🏠 回家` 出站。访问 `192.168.1.0/24` 和 Tailscale `100.64.0.0/10` 会走回家，不影响 NAS/Windows 模板。
+- NAS：面向 Debian NAS 或网关，`allow-lan: true`，但用 `lan-allowed-ips` 收紧到私网和 Tailscale 网段；只做 US/JP 分组、CN/私网直连和最终代理，不包含 Tailscale 出站，也不开放 Web 控制接口。
+- Windows：面向本机桌面客户端，`allow-lan: false`，只监听本机控制接口，不包含 Tailscale。
+
+节点命名建议在订阅转换阶段给美国节点加 `us` 前缀、日本节点加 `jp` 前缀。模板也兼容常见地区词，例如 `美国`、`日本`、`USA`、`Japan`、`Tokyo`、`Los Angeles`。
+
+三端都会把 OpenAI 和 GitHub 走美国节点，把日本域名和常见日区服务走日本节点。YouTube、Netflix 这类媒体服务不强行固定地区，默认跟随 `🚀 节点选择`，避免干扰你手动选择日区或美区。
+
+DNS 使用 fake-ip 与 `respect-rules`。直连域名使用阿里/腾讯 DoH，代理域名使用对应规则分流后的 DoH，避免直连域名被国外 DNS 解析、代理域名被国内 DNS 污染。内置模板默认关闭 Mihomo IPv6（顶层 `ipv6: false`，`dns.ipv6: false`），不返回 AAAA 记录，降低 IPv6 直连和 DNS 泄露风险。
+
+Android 模板的 WebUI/规则依赖：
+
+- WebUI：`MetaCubeX/metacubexd`，通过 `external-ui-url` 从 `testingcf.jsdelivr.net` 下载。
+- Geo 数据：`MetaCubeX/meta-rules-dat` 的 `geoip.dat`、`geosite.dat`、`country.mmdb`、`GeoLite2-ASN.mmdb`。
+- 额外规则集：`milikii/sing-box-geosite` 里的 `pt.list` 和 `FCM.list`。
+
+`rule-providers` 已显式配置 `proxy: ⚡ 自动选择`，规则集更新会走自动选择出的 US/JP 节点，避免直连失败。WebUI 的 `external-ui-url` 在 mihomo 配置里没有独立 `proxy` 字段；模板使用 jsDelivr 镜像地址，并把 `testingcf.jsdelivr.net`、`jsdelivr.net`、GitHub 静态资源域名提前分流到美国节点作为兜底。
+
+Android 模板有一个必填变量：
+
+```text
+{{TAILSCALE_AUTH_KEY}}
+```
+
+生成 Android 配置前，在变量里填 Tailscale auth key。NAS 和 Windows 不需要这个变量，也不会生成 Tailscale 出站。
+
+Android 端注意两点：
+
+- Android 客户端内核必须支持 `type: tailscale`。本仓库测试机上的 Mihomo v1.19.0 会报 `unsupport proxy type: tailscale`，需要使用包含 Tailscale 出站支持的新版/alpha 内核。
+- 关闭系统“私人 DNS”，否则 TUN 的 DNS 劫持可能被绕过。
+- `type: tailscale` 出站会在首次命中回家规则时启动，第一次访问 `192.168.1.x` 可能比后续访问慢。
+- Tailscale 出站的 `dialer-proxy` 指向 `⚡ 自动选择`，用于在受限网络里通过普通 US/JP 节点连接 Tailscale 控制面和 DERP。
+
 线上已经保存过的模板不会被仓库里的新默认模板强行覆盖。代码部署后，打开网页进入模板编辑区，选择 `Android`，点击 `恢复内置模板`，就会把线上保存的 Android 模板同步成仓库里的新版内置模板。
+
+如果要同步 NAS 或 Windows 的新版内置模板，也分别选择对应模板后点击 `恢复内置模板`。
 
 节点注入有两种方式：
 
@@ -164,10 +201,11 @@ Android 内置模板已经是完整 mihomo alpha 配置，不需要手写 `{{PRO
 {{NODE_COUNT}}
 ```
 
-保存模板后，其他大写占位符会变成前端变量输入项。例如：
+保存模板后，其他自定义占位符会变成前端变量输入项。占位符名会统一成大写下划线，`{{profileName}}` 和 `{{PROFILE_NAME}}` 等价。例如：
 
 ```text
 {{DNS_MODE}}
+{{dnsMode}}
 ```
 
 ## VLESS 节点解析
