@@ -6,7 +6,7 @@ log-level: info
 ipv6: false
 external-controller: 127.0.0.1:9090
 external-ui: ./ui
-external-ui-url: https://testingcf.jsdelivr.net/gh/MetaCubeX/metacubexd@gh-pages/metacubexd.zip
+external-ui-url: https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip
 secret: ""
 unified-delay: true
 tcp-concurrent: true
@@ -14,10 +14,10 @@ geodata-mode: true
 geo-auto-update: true
 geo-update-interval: 24
 geox-url:
-  geoip: https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
-  geosite: https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat
-  mmdb: https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/country.mmdb
-  asn: https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/GeoLite2-ASN.mmdb
+  geoip: https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat
+  geosite: https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat
+  mmdb: https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb
+  asn: https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb
 profile:
   store-selected: true
   store-fake-ip: true
@@ -130,15 +130,23 @@ rule-providers:
     behavior: domain
     format: text
     path: ./ruleset/pt-direct.list
-    url: https://testingcf.jsdelivr.net/gh/milikii/sing-box-geosite@main/pt.list
+    url: https://raw.githubusercontent.com/milikii/t-sub/master/rules/pt-direct.list
     proxy: ⚡ 自动选择
     interval: 86400
-  fcm-proxy:
+  fcm-domain:
     type: http
     behavior: domain
     format: text
-    path: ./ruleset/fcm-proxy.list
-    url: https://testingcf.jsdelivr.net/gh/milikii/sing-box-geosite@main/FCM.list
+    path: ./ruleset/fcm-domain.list
+    url: https://raw.githubusercontent.com/milikii/t-sub/master/rules/fcm-domain.list
+    proxy: ⚡ 自动选择
+    interval: 86400
+  fcm-ipcidr:
+    type: http
+    behavior: ipcidr
+    format: text
+    path: ./ruleset/fcm-ipcidr.list
+    url: https://raw.githubusercontent.com/milikii/t-sub/master/rules/fcm-ipcidr.list
     proxy: ⚡ 自动选择
     interval: 86400
 
@@ -216,47 +224,9 @@ rules:
   - IP-CIDR,100.64.0.0/10,🏠 回家,no-resolve
   - IP-CIDR6,fc00::/7,🏠 回家,no-resolve
   - IP-CIDR6,fe80::/10,🏠 回家,no-resolve
-  - RULE-SET,fcm-proxy,📲 谷歌推送
-  - DOMAIN,mtalk.google.com,📲 谷歌推送
-  - DOMAIN,alt1-mtalk.google.com,📲 谷歌推送
-  - DOMAIN,alt2-mtalk.google.com,📲 谷歌推送
-  - DOMAIN,alt3-mtalk.google.com,📲 谷歌推送
-  - DOMAIN,alt4-mtalk.google.com,📲 谷歌推送
-  - DOMAIN,alt5-mtalk.google.com,📲 谷歌推送
-  - DOMAIN,alt6-mtalk.google.com,📲 谷歌推送
-  - DOMAIN,alt7-mtalk.google.com,📲 谷歌推送
-  - DOMAIN,alt8-mtalk.google.com,📲 谷歌推送
-  - IP-CIDR,108.177.125.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,142.250.10.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,142.250.31.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,142.250.4.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,142.250.96.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,172.217.194.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,172.217.218.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,172.217.219.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,172.253.122.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,172.253.63.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,173.194.175.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,173.194.218.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,209.85.233.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,64.233.177.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,64.233.186.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,64.233.187.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,64.233.188.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,64.233.189.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,74.125.127.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,74.125.137.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,74.125.203.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,74.125.204.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,74.125.206.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,74.125.23.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,74.125.24.188/32,📲 谷歌推送,no-resolve
-  - IP-CIDR,74.125.28.188/32,📲 谷歌推送,no-resolve
+  - RULE-SET,fcm-domain,📲 谷歌推送
+  - RULE-SET,fcm-ipcidr,📲 谷歌推送,no-resolve
   - RULE-SET,pt-direct,DIRECT
-  - DOMAIN-SUFFIX,testingcf.jsdelivr.net,🇺🇸 美国节点
-  - DOMAIN-SUFFIX,jsdelivr.net,🇺🇸 美国节点
-  - DOMAIN-SUFFIX,githubusercontent.com,🇺🇸 美国节点
-  - DOMAIN-SUFFIX,githubassets.com,🇺🇸 美国节点
   - GEOSITE,openai,🇺🇸 美国节点
   - GEOSITE,github,🇺🇸 美国节点
   - DOMAIN-SUFFIX,jp,🇯🇵 日本节点
@@ -420,10 +390,6 @@ rules:
   - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
   - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
   - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
-  - DOMAIN-SUFFIX,testingcf.jsdelivr.net,🇺🇸 美国节点
-  - DOMAIN-SUFFIX,jsdelivr.net,🇺🇸 美国节点
-  - DOMAIN-SUFFIX,githubusercontent.com,🇺🇸 美国节点
-  - DOMAIN-SUFFIX,githubassets.com,🇺🇸 美国节点
   - GEOSITE,openai,🇺🇸 美国节点
   - GEOSITE,github,🇺🇸 美国节点
   - DOMAIN-SUFFIX,jp,🇯🇵 日本节点
