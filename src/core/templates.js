@@ -15,12 +15,12 @@ export const DEFAULT_TEMPLATES = [
     id: "nas",
     name: "NAS",
     platform: "nas",
-    description: "适合 Debian NAS 或网关设备使用，仅允许私网/Tailscale 网段访问本机代理，不包含 Tailscale 出站。",
+    description: "适合 Debian NAS / docker mihomo 旁路由：仅允许私网/Tailscale 网段访问本机代理，不包含 Tailscale 出站（宿主已在 tailnet）。",
     body: NAS_TEMPLATE_BODY,
     variables: [
       { name: "PROFILE_NAME", required: true, defaultValue: "NAS" },
     ],
-    revision: 2,
+    revision: 3,
   },
   {
     id: "windows",
@@ -31,7 +31,7 @@ export const DEFAULT_TEMPLATES = [
     variables: [
       { name: "PROFILE_NAME", required: true, defaultValue: "Windows" },
     ],
-    revision: 2,
+    revision: 3,
   },
 ];
 

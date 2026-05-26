@@ -144,8 +144,8 @@ Android 内置模板已经是完整 mihomo alpha 配置，不需要手写 `{{PRO
 三端内置模板现在按用途分开：
 
 - Android：开启 TUN、fake-ip DNS、FCM 规则、US/JP 分组，并内置一个 `type: tailscale` 的 `🏠 回家` 出站。访问 `192.168.1.0/24` 和 Tailscale `100.64.0.0/10` 会走回家，不影响 NAS/Windows 模板。
-- NAS：面向 Debian NAS 或网关，`allow-lan: true`，但用 `lan-allowed-ips` 收紧到私网和 Tailscale 网段；只做 US/JP 分组、CN/私网直连和最终代理，不包含 Tailscale 出站，也不开放 Web 控制接口。
-- Windows：面向本机桌面客户端，`allow-lan: false`，只监听本机控制接口，不包含 Tailscale。
+- NAS：面向 Debian NAS / Docker 旁路由场景。`allow-lan: true`，但用 `lan-allowed-ips` 收紧到私网（包括 Docker 网桥常用的 `172.16.0.0/12`）和 Tailscale `100.64.0.0/10` 网段；只做 US/JP 分组、CN/私网直连和最终代理，**不包含 Tailscale 出站**（典型 NAS 上 Tailscale 由宿主 daemon 接管，subnet router 直接走系统路由），也不开放 Web 控制接口。`fake-ip-filter` 已包含 `*.19970626.xyz` / `*.tailc1b432.ts.net` 避免家用域名被 fake-ip 化。
+- Windows：面向本机桌面客户端，`allow-lan: false`，只监听本机控制接口，不包含 Tailscale。`fake-ip-filter` 同 NAS 模板。
 
 节点命名建议在订阅转换阶段给美国节点加 `us` 前缀、日本节点加 `jp` 前缀。模板也兼容常见地区词，例如 `美国`、`日本`、`USA`、`Japan`、`Tokyo`、`Los Angeles`。
 
@@ -197,6 +197,29 @@ Android 端注意两点：
 ```
 
 推荐完整模板直接保留顶层 `proxies:` 段。没有 `{{PROXIES_YAML}}` 时，系统会自动把你粘贴的节点插入到顶层 `proxies:` 下面，并保留模板里已有的兜底节点。
+
+## NAS Docker 部署参考
+
+NAS 模板默认按"宿主已经在 Tailscale + mihomo 只做 HTTP/SOCKS 旁路由"假设。推荐 Docker bridge 跑 mihomo alpha 内核（≥ v1.19.25），互不污染宿主网络：
+
+```yaml
+# docker-compose.yml
+services:
+  mihomo:
+    image: metacubex/mihomo:Alpha
+    container_name: mihomo
+    restart: unless-stopped
+    network_mode: bridge
+    ports:
+      - "7890:7890"   # mixed http+socks
+      - "9090:9090"   # 可选：external-controller 调试用，模板默认不开
+    volumes:
+      - ./mihomo:/root/.config/mihomo
+    environment:
+      - TZ=Asia/Shanghai
+```
+
+把 t-sub 生成的 NAS yaml 命名为 `config.yaml` 放进 `./mihomo/` 里 `docker compose up -d` 即可。局域网其他设备配 `http://<NAS_IP>:7890` 当 HTTP/SOCKS 代理就能用，无需改 DNS/网关。Tailscale 流量由宿主 daemon 处理，容器里命中 `IP-CIDR,100.64.0.0/10,DIRECT` 直接落到宿主路由表，不需要再装 `type: tailscale` 出站。
 
 如果你想精确控制节点插入位置，就在模板里写 `{{PROXIES_YAML}}`。
 

@@ -308,6 +308,8 @@ dns:
   fake-ip-filter:
     - '*.lan'
     - '*.local'
+    - '*.19970626.xyz'
+    - '*.tailc1b432.ts.net'
     - localhost
     - localhost.ptlogin2.qq.com
     - dns.msftncsi.com
