@@ -159,7 +159,7 @@ Android 模板的 WebUI/规则依赖：
 - Geo 数据：`MetaCubeX/meta-rules-dat` 的 `geoip.dat`、`geosite.dat`、`country.mmdb`、`GeoLite2-ASN.mmdb`。
 - 额外规则集：本仓库 `rules/` 目录里的 `pt-direct.list`、`fcm-domain.list` 和 `fcm-ipcidr.list`。
 
-`rule-providers` 已显式配置 `proxy: ⚡ 自动选择`，规则集更新会走自动选择出的 US/JP 节点，避免直连失败。WebUI 的 `external-ui-url` 在 mihomo 配置里没有独立 `proxy` 字段；如果本地 WebUI 下载失败，可以直接使用在线版 `https://metacubex.github.io/metacubexd/`，后端地址填 `http://127.0.0.1:9090`。
+`rule-providers` 默认走默认拨号器更新规则，不绑定具体代理组，避免启动时代理组未就绪导致规则集拉取失败。WebUI 的 `external-ui-url` 在 mihomo 配置里没有独立 `proxy` 字段；如果本地 WebUI 下载失败，可以直接使用在线版 `https://metacubex.github.io/metacubexd/`，后端地址填 `http://127.0.0.1:9090`。
 
 如果有网站需要强制直连，写入：
 
@@ -176,20 +176,14 @@ example.org
 
 `+.example.com` 匹配 `example.com` 和它的所有子域名；裸域名只匹配该域名本身。提交并推送后，客户端下次规则集更新会通过 `RULE-SET,pt-direct,DIRECT` 生效。
 
-Android 模板有一个必填变量：
-
-```text
-{{TAILSCALE_AUTH_KEY}}
-```
-
-生成 Android 配置前，在变量里填 Tailscale auth key。NAS 和 Windows 不需要这个变量，也不会生成 Tailscale 出站。
+Android 模板不需要在生成阶段填变量。Tailscale 出站走交互式登录：首次启动 mihomo 后查看日志，会有一条 `https://login.tailscale.com/...` URL，浏览器打开扫码或登录一次即可，state 持久化到 `state-dir: ./tailscale`，之后启动自动复用，不再需要手动操作。NAS 和 Windows 模板也不需要填变量，并且不包含 Tailscale 出站。
 
 Android 端注意两点：
 
 - Android 客户端内核必须支持 `type: tailscale`。本仓库测试机上的 Mihomo v1.19.0 会报 `unsupport proxy type: tailscale`，需要使用包含 Tailscale 出站支持的新版/alpha 内核。
 - 关闭系统“私人 DNS”，否则 TUN 的 DNS 劫持可能被绕过。
 - `type: tailscale` 出站会在首次命中回家规则时启动，第一次访问 `192.168.1.x` 可能比后续访问慢。
-- Tailscale 出站的 `dialer-proxy` 指向 `⚡ 自动选择`，用于在受限网络里通过普通 US/JP 节点连接 Tailscale 控制面和 DERP。
+- Tailscale 出站按 mihomo 官方推荐字段组合：`hostname: mihomo-android`、`state-dir: ./tailscale`、`ip-version: dual`，不设 `dialer-proxy`，让 mihomo 用默认拨号器直连 `controlplane.tailscale.com`。`100.100.92.21` 这类地址是 Tailscale 控制面给该 `tsnet` 节点分配的 IP，不需要写进模板。`fake-ip-filter` 已加入 `*.19970626.xyz` 和 `*.tailc1b432.ts.net`，确保 ts.net 域名 / 内网域名走真实解析而不是 fake-ip，否则 tailscale 节点会收到 198.18.x.x 的假地址直接连不上。
 
 线上已经保存过的模板不会被仓库里的新默认模板强行覆盖。代码部署后，打开网页进入模板编辑区，选择 `Android`，点击 `恢复内置模板`，就会把线上保存的 Android 模板同步成仓库里的新版内置模板。
 

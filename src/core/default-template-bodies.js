@@ -21,6 +21,11 @@ geox-url:
 profile:
   store-selected: true
   store-fake-ip: true
+hosts:
+  19970626.xyz: 192.168.2.220
+  '*.19970626.xyz': 192.168.2.220
+  nas.tailc1b432.ts.net: 100.118.67.82
+  vivo.tailc1b432.ts.net: 100.94.59.105
 sniffer:
   enable: true
   force-dns-mapping: true
@@ -45,9 +50,10 @@ tun:
   auto-route: true
   strict-route: true
   auto-detect-interface: true
+  route-address:
+    - 0.0.0.0/0
   dns-hijack:
     - any:53
-    - tcp://any:53
 dns:
   enable: true
   listen: 127.0.0.1:1053
@@ -58,6 +64,8 @@ dns:
   fake-ip-filter:
     - '*.lan'
     - '*.local'
+    - '*.19970626.xyz'
+    - '*.tailc1b432.ts.net'
     - connectivitycheck.gstatic.com
     - connectivitycheck.android.com
     - time.android.com
@@ -131,7 +139,6 @@ rule-providers:
     format: text
     path: ./ruleset/pt-direct.list
     url: https://raw.githubusercontent.com/milikii/t-sub/master/rules/pt-direct.list
-    proxy: ⚡ 自动选择
     interval: 86400
   fcm-domain:
     type: http
@@ -139,7 +146,6 @@ rule-providers:
     format: text
     path: ./ruleset/fcm-domain.list
     url: https://raw.githubusercontent.com/milikii/t-sub/master/rules/fcm-domain.list
-    proxy: ⚡ 自动选择
     interval: 86400
   fcm-ipcidr:
     type: http
@@ -147,24 +153,23 @@ rule-providers:
     format: text
     path: ./ruleset/fcm-ipcidr.list
     url: https://raw.githubusercontent.com/milikii/t-sub/master/rules/fcm-ipcidr.list
-    proxy: ⚡ 自动选择
     interval: 86400
 
 # 订阅转换基础模板。生成配置时会把节点插入到这里。
 # Android 端内置 mihomo tailscale 出站，用于访问家里 192.168.1.x 内网。
+# 首次启动会在 mihomo 日志里打印 https://login.tailscale.com/... 登录 URL，
+# 浏览器登录一次即可，state 持久化到 state-dir，无需重复登录或配置 auth-key。
 proxies:
-  - name: 🏠 Tailscale 回家
+  - name: tailscale
     type: tailscale
     hostname: mihomo-android
-    auth-key: "{{TAILSCALE_AUTH_KEY}}"
     control-url: https://controlplane.tailscale.com
     state-dir: ./tailscale
     ephemeral: false
     udp: true
     accept-routes: true
     exit-node-allow-lan-access: true
-    dialer-proxy: ⚡ 自动选择
-    ip-version: ipv4-prefer
+    ip-version: dual
 
 proxy-groups:
   - name: 🚀 节点选择
@@ -202,7 +207,8 @@ proxy-groups:
   - name: 🏠 回家
     type: select
     proxies:
-      - 🏠 Tailscale 回家
+      - tailscale
+      - DIRECT
     url: https://www.baidu.com/favicon.ico
     interval: 300
   - name: 📲 谷歌推送
@@ -215,15 +221,15 @@ proxy-groups:
       - DIRECT
 
 rules:
-  - DOMAIN,home.19970626.xyz,DIRECT
-  - DOMAIN-SUFFIX,lan,🏠 回家
-  - DOMAIN-SUFFIX,local,🏠 回家
+  - DOMAIN-SUFFIX,19970626.xyz,tailscale
+  - DOMAIN,nas.tailc1b432.ts.net,tailscale
+  - DOMAIN,vivo.tailc1b432.ts.net,tailscale
+  - DOMAIN-SUFFIX,lan,tailscale
+  - DOMAIN-SUFFIX,local,tailscale
   - DOMAIN-SUFFIX,localhost,DIRECT
-  - GEOSITE,private,🏠 回家
-  - IP-CIDR,192.168.1.0/24,🏠 回家,no-resolve
-  - IP-CIDR,100.64.0.0/10,🏠 回家,no-resolve
-  - IP-CIDR6,fc00::/7,🏠 回家,no-resolve
-  - IP-CIDR6,fe80::/10,🏠 回家,no-resolve
+  - IP-CIDR,192.168.1.0/24,tailscale,no-resolve
+  - IP-CIDR,192.168.2.0/24,tailscale,no-resolve
+  - IP-CIDR,100.64.0.0/10,tailscale,no-resolve
   - RULE-SET,fcm-domain,📲 谷歌推送
   - RULE-SET,fcm-ipcidr,📲 谷歌推送,no-resolve
   - RULE-SET,pt-direct,DIRECT

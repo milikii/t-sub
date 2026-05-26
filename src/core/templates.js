@@ -6,12 +6,10 @@ export const DEFAULT_TEMPLATES = [
     id: "android",
     name: "Android",
     platform: "android",
-    description: "Android mihomo alpha 完整模板，包含 TUN、DNS、FCM、US/JP 分组和 Tailscale 回家。",
+    description: "Android mihomo alpha 完整模板，包含 TUN、DNS、FCM、US/JP 分组和 Tailscale 回家（首次启动需要在日志里完成 Tailscale 登录）。",
     body: ANDROID_TEMPLATE_BODY,
-    variables: [
-      { name: "TAILSCALE_AUTH_KEY", required: true, defaultValue: "" },
-    ],
-    revision: 3,
+    variables: [],
+    revision: 7,
   },
   {
     id: "nas",

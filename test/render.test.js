@@ -21,11 +21,14 @@ test("android built-in template injects generated proxies into top-level proxies
   const result = renderConfig({
     template: builtInTemplateById("android"),
     nodesText: "ss://YWVzLTEyOC1nY206cGFzc0BleGFtcGxlLmNvbTo4Mzg4#Android%20Sample",
-    variables: { TAILSCALE_AUTH_KEY: "tskey-auth-test" },
+    variables: {},
   });
 
   assert.match(result.configYaml, /tun:\n  enable: true/);
-  assert.match(result.configYaml, /dns-hijack:\n    - any:53\n    - tcp:\/\/any:53/);
+  assert.match(result.configYaml, /route-address:\n    - 0\.0\.0\.0\/0/);
+  assert.doesNotMatch(result.configYaml, /::\/0/);
+  assert.match(result.configYaml, /dns-hijack:\n    - any:53/);
+  assert.doesNotMatch(result.configYaml, /tcp:\/\/any:53/);
   assert.match(result.configYaml, /^ipv6: false$/m);
   assert.match(result.configYaml, /dns:\n  enable: true\n  listen: 127\.0\.0\.1:1053\n  ipv6: false/);
   assert.doesNotMatch(result.configYaml, /^ipv6: true$/m);
@@ -36,24 +39,34 @@ test("android built-in template injects generated proxies into top-level proxies
   assert.match(result.configYaml, /connectivitycheck\.android\.com/);
   assert.match(result.configYaml, /time\.android\.com/);
   assert.match(result.configYaml, /dns\.msftncsi\.com/);
+  assert.match(result.configYaml, /- '\*\.19970626\.xyz'/);
+  assert.match(result.configYaml, /- '\*\.tailc1b432\.ts\.net'/);
   assert.doesNotMatch(result.configYaml, /global-client-fingerprint/);
   assert.match(result.configYaml, /proxies:\n  - name: "Android Sample"/);
   assert.match(result.configYaml, /type: tailscale/);
-  assert.match(result.configYaml, /dialer-proxy: ⚡ 自动选择/);
-  assert.match(result.configYaml, /IP-CIDR,192\.168\.1\.0\/24,🏠 回家,no-resolve/);
-  assert.match(result.configYaml, /GEOSITE,private,🏠 回家/);
+  assert.match(result.configYaml, /name: tailscale/);
+  assert.match(result.configYaml, /hostname: mihomo-android/);
+  assert.match(result.configYaml, /state-dir: \.\/tailscale/);
+  assert.match(result.configYaml, /exit-node-allow-lan-access: true/);
+  assert.doesNotMatch(result.configYaml, /dialer-proxy:/);
+  assert.doesNotMatch(result.configYaml, /auth-key:/);
+  assert.match(result.configYaml, /ip-version: dual/);
+  assert.match(result.configYaml, /IP-CIDR,192\.168\.1\.0\/24,tailscale,no-resolve/);
+  assert.match(result.configYaml, /IP-CIDR,192\.168\.2\.0\/24,tailscale,no-resolve/);
+  assert.doesNotMatch(result.configYaml, /IP-CIDR6/);
   assert.match(result.configYaml, /GEOSITE,openai,🇺🇸 美国节点/);
   assert.match(result.configYaml, /GEOSITE,github,🇺🇸 美国节点/);
   assert.match(result.configYaml, /geosite:openai:/);
   assert.match(result.configYaml, /external-ui-url: https:\/\/github\.com\/MetaCubeX\/metacubexd\/archive\/refs\/heads\/gh-pages\.zip/);
-  assert.match(result.configYaml, /url: https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/pt-direct\.list\n    proxy: ⚡ 自动选择/);
-  assert.match(result.configYaml, /url: https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/fcm-domain\.list\n    proxy: ⚡ 自动选择/);
-  assert.match(result.configYaml, /url: https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/fcm-ipcidr\.list\n    proxy: ⚡ 自动选择/);
+  assert.match(result.configYaml, /url: https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/pt-direct\.list\n    interval: 86400/);
+  assert.match(result.configYaml, /url: https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/fcm-domain\.list\n    interval: 86400/);
+  assert.match(result.configYaml, /url: https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/fcm-ipcidr\.list\n    interval: 86400/);
+  assert.doesNotMatch(result.configYaml, /proxy: ⚡ 自动选择\n    interval: 86400/);
   assert.match(result.configYaml, /RULE-SET,fcm-domain,📲 谷歌推送/);
   assert.match(result.configYaml, /RULE-SET,fcm-ipcidr,📲 谷歌推送,no-resolve/);
   assert.doesNotMatch(result.configYaml, /testingcf\.jsdelivr\.net/);
   assert.doesNotMatch(result.configYaml, /DOMAIN-SUFFIX,jsdelivr\.net/);
-  assert.match(result.configYaml, /name: 🏠 回家\n    type: select\n    proxies:\n      - 🏠 Tailscale 回家\n    url:/);
+  assert.match(result.configYaml, /name: 🏠 回家\n    type: select\n    proxies:\n      - tailscale\n      - DIRECT\n    url:/);
   assert.doesNotMatch(result.configYaml, /name: 🏠 回家[\s\S]*?include-all: true/);
   assert.match(result.configYaml, /MATCH,🚀 节点选择/);
 });
@@ -101,28 +114,20 @@ test("nas and windows templates keep tailscale out while using shared us jp dns 
   }
 });
 
-test("saved templates keep tailscale auth key required", () => {
+test("saved templates always elevate PROFILE_NAME to required", () => {
   const template = normalizeTemplate({
-    id: "android",
-    name: "Android",
-    platform: "android",
-    body: DEFAULT_TEMPLATES[0].body,
+    id: "nas",
+    name: "NAS",
+    platform: "nas",
+    body: DEFAULT_TEMPLATES[1].body,
     variables: [
-      { name: "TAILSCALE_AUTH_KEY", required: false, defaultValue: "" },
+      { name: "PROFILE_NAME", required: false, defaultValue: "NAS" },
     ],
   });
 
   assert.deepEqual(template.variables, [
-    { name: "TAILSCALE_AUTH_KEY", required: true, defaultValue: "" },
+    { name: "PROFILE_NAME", required: true, defaultValue: "NAS" },
   ]);
-  assert.throws(
-    () => renderConfig({
-      template,
-      nodesText: "ss://YWVzLTI1Ni1nY206cGFzc0Bzcy5leGFtcGxlLmNvbTo4Mzg4#ss",
-      variables: {},
-    }),
-    /TAILSCALE_AUTH_KEY/,
-  );
 });
 
 test("template normalization discovers variables from yaml body", () => {
@@ -133,19 +138,17 @@ test("template normalization discovers variables from yaml body", () => {
     body: DEFAULT_TEMPLATES[0].body,
   });
 
-  assert.deepEqual(template.variables, [
-    { name: "TAILSCALE_AUTH_KEY", required: true, defaultValue: "" },
-  ]);
+  assert.deepEqual(template.variables, []);
 });
 
 test("render accepts normalized variable names from api callers", () => {
   const result = renderConfig({
-    template: builtInTemplateById("android"),
-    nodesText: "ss://YWVzLTEyOC1nY206cGFzc0BleGFtcGxlLmNvbTo4Mzg4#Android%20Sample",
-    variables: { tailScaleAuthKey: "tskey-auth-test" },
+    template: builtInTemplateById("nas"),
+    nodesText: "ss://YWVzLTEyOC1nY206cGFzc0BleGFtcGxlLmNvbTo4Mzg4#NAS%20Sample",
+    variables: { profileName: "CustomProfile" },
   });
 
-  assert.match(result.configYaml, /auth-key: "tskey-auth-test"/);
+  assert.match(result.configYaml, /CustomProfile 生成于/);
 });
 
 test("template normalization accepts camel case variable metadata", () => {
@@ -259,7 +262,7 @@ test("rejects unresolved template variables", () => {
         body: `${DEFAULT_TEMPLATES[0].body}\\nextra: {{MISSING_VALUE}}\\n`,
       },
       nodesText: "ss://YWVzLTI1Ni1nY206cGFzc0Bzcy5leGFtcGxlLmNvbTo4Mzg4#ss",
-      variables: { TAILSCALE_AUTH_KEY: "tskey-auth-test" },
+      variables: {},
     }),
     /未填写的变量/,
   );
