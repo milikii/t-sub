@@ -127,6 +127,8 @@ test("saved templates always elevate PROFILE_NAME to required", () => {
 
   assert.deepEqual(template.variables, [
     { name: "PROFILE_NAME", required: true, defaultValue: "NAS" },
+    { name: "HOME_DOMAIN", required: false, defaultValue: "" },
+    { name: "TS_DOMAIN", required: false, defaultValue: "" },
   ]);
 });
 
@@ -138,7 +140,10 @@ test("template normalization discovers variables from yaml body", () => {
     body: DEFAULT_TEMPLATES[0].body,
   });
 
-  assert.deepEqual(template.variables, []);
+  assert.deepEqual(template.variables, [
+    { name: "HOME_DOMAIN", required: false, defaultValue: "" },
+    { name: "TS_DOMAIN", required: false, defaultValue: "" },
+  ]);
 });
 
 test("render accepts normalized variable names from api callers", () => {

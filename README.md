@@ -200,26 +200,54 @@ Android 端注意两点：
 
 ## NAS Docker 部署参考
 
-NAS 模板默认按"宿主已经在 Tailscale + mihomo 只做 HTTP/SOCKS 旁路由"假设。推荐 Docker bridge 跑 mihomo alpha 内核（≥ v1.19.25），互不污染宿主网络：
+NAS 模板默认按"宿主已经在 Tailscale + mihomo 只做 HTTP/SOCKS 旁路由"假设。推荐 Docker bridge 跑 mihomo alpha 内核（≥ v1.19.25，已含全部 Tailscale 修复），互不污染宿主网络：
 
 ```yaml
 # docker-compose.yml
 services:
   mihomo:
-    image: metacubex/mihomo:Alpha
+    image: metacubex/mihomo:Prerelease-Alpha
     container_name: mihomo
     restart: unless-stopped
+    pull_policy: always
     network_mode: bridge
     ports:
       - "7890:7890"   # mixed http+socks
-      - "9090:9090"   # 可选：external-controller 调试用，模板默认不开
+      # - "9090:9090" # 仅在模板里手动加了 external-controller 才映射，并务必加 secret
     volumes:
       - ./mihomo:/root/.config/mihomo
     environment:
       - TZ=Asia/Shanghai
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 ```
 
-把 t-sub 生成的 NAS yaml 命名为 `config.yaml` 放进 `./mihomo/` 里 `docker compose up -d` 即可。局域网其他设备配 `http://<NAS_IP>:7890` 当 HTTP/SOCKS 代理就能用，无需改 DNS/网关。Tailscale 流量由宿主 daemon 处理，容器里命中 `IP-CIDR,100.64.0.0/10,DIRECT` 直接落到宿主路由表，不需要再装 `type: tailscale` 出站。
+首次启动 4 步：
+
+```bash
+mkdir -p ~/mihomo-stack/mihomo && cd ~/mihomo-stack
+# 把 t-sub 生成的 NAS YAML 存为 ./mihomo/config.yaml（建议直接订阅链接也支持，看 mihomo 启动参数）
+curl -sSL "https://<your-t-sub>/render/<id>" -o ./mihomo/config.yaml
+# 把上面 docker-compose.yml 复制进当前目录
+docker compose up -d && docker logs -f mihomo
+```
+
+局域网其他设备配 `http://<NAS_IP>:7890` 当 HTTP/SOCKS 代理就能用，无需改 DNS/网关。Tailscale 流量由宿主 daemon 处理，容器里命中 `IP-CIDR,100.64.0.0/10,DIRECT` 直接落到宿主路由表，不需要再装 `type: tailscale` 出站。Docker bridge 默认网段 `172.16.0.0/12` 已包含在模板的 `lan-allowed-ips` 里，容器内的 mihomo 不会因为来源 IP 不在白名单而拒绝连接。
+
+### 共享变量
+
+三个内置模板（Android / NAS / Windows）都暴露以下两个可改的模板变量，用来定制家用域名 / Tailnet 域名通配过滤：
+
+| 变量 | 默认值 | 出现位置 |
+|---|---|---|
+| `HOME_DOMAIN` | `19970626.xyz` | `fake-ip-filter` 通配；Android 模板的 `DOMAIN-SUFFIX,...,tailscale` 规则 |
+| `TS_DOMAIN` | `tailc1b432.ts.net` | 同上 |
+
+Fork 此项目时直接改这两个变量的 `defaultValue`（`src/core/templates.js`）或者在 t-sub 网页"模板编辑→变量"里覆盖即可，不必再手改 YAML 主体。Android 模板的 `hosts` 表里仍硬编码了具体 IP 映射（`19970626.xyz: 192.168.2.220` 等），那是个人化的内网寻址表，fork 时一并替换。
+
 
 如果你想精确控制节点插入位置，就在模板里写 `{{PROXIES_YAML}}`。
 

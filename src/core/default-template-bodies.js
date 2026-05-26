@@ -64,8 +64,8 @@ dns:
   fake-ip-filter:
     - '*.lan'
     - '*.local'
-    - '*.19970626.xyz'
-    - '*.tailc1b432.ts.net'
+    - '*.{{HOME_DOMAIN}}'
+    - '*.{{TS_DOMAIN}}'
     - connectivitycheck.gstatic.com
     - connectivitycheck.android.com
     - time.android.com
@@ -221,9 +221,8 @@ proxy-groups:
       - DIRECT
 
 rules:
-  - DOMAIN-SUFFIX,19970626.xyz,tailscale
-  - DOMAIN,nas.tailc1b432.ts.net,tailscale
-  - DOMAIN,vivo.tailc1b432.ts.net,tailscale
+  - DOMAIN-SUFFIX,{{HOME_DOMAIN}},tailscale
+  - DOMAIN-SUFFIX,{{TS_DOMAIN}},tailscale
   - DOMAIN-SUFFIX,lan,tailscale
   - DOMAIN-SUFFIX,local,tailscale
   - DOMAIN-SUFFIX,localhost,DIRECT
@@ -308,8 +307,8 @@ dns:
   fake-ip-filter:
     - '*.lan'
     - '*.local'
-    - '*.19970626.xyz'
-    - '*.tailc1b432.ts.net'
+    - '*.{{HOME_DOMAIN}}'
+    - '*.{{TS_DOMAIN}}'
     - localhost
     - localhost.ptlogin2.qq.com
     - dns.msftncsi.com

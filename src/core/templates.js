@@ -8,8 +8,11 @@ export const DEFAULT_TEMPLATES = [
     platform: "android",
     description: "Android mihomo alpha 完整模板，包含 TUN、DNS、FCM、US/JP 分组和 Tailscale 回家（首次启动需要在日志里完成 Tailscale 登录）。",
     body: ANDROID_TEMPLATE_BODY,
-    variables: [],
-    revision: 7,
+    variables: [
+      { name: "HOME_DOMAIN", required: false, defaultValue: "19970626.xyz" },
+      { name: "TS_DOMAIN", required: false, defaultValue: "tailc1b432.ts.net" },
+    ],
+    revision: 8,
   },
   {
     id: "nas",
@@ -19,8 +22,10 @@ export const DEFAULT_TEMPLATES = [
     body: NAS_TEMPLATE_BODY,
     variables: [
       { name: "PROFILE_NAME", required: true, defaultValue: "NAS" },
+      { name: "HOME_DOMAIN", required: false, defaultValue: "19970626.xyz" },
+      { name: "TS_DOMAIN", required: false, defaultValue: "tailc1b432.ts.net" },
     ],
-    revision: 3,
+    revision: 4,
   },
   {
     id: "windows",
@@ -30,8 +35,10 @@ export const DEFAULT_TEMPLATES = [
     body: WINDOWS_TEMPLATE_BODY,
     variables: [
       { name: "PROFILE_NAME", required: true, defaultValue: "Windows" },
+      { name: "HOME_DOMAIN", required: false, defaultValue: "19970626.xyz" },
+      { name: "TS_DOMAIN", required: false, defaultValue: "tailc1b432.ts.net" },
     ],
-    revision: 3,
+    revision: 4,
   },
 ];
 
