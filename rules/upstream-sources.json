@@ -1,0 +1,25 @@
+{
+  "sources": [
+    {
+      "id": "henrychiao-direct",
+      "target": "custom-direct-domain.list",
+      "url": "https://raw.githubusercontent.com/HenryChiao/mihomo_yamls/main/custom/direct.list",
+      "route": "DIRECT",
+      "enabled": false
+    },
+    {
+      "id": "henrychiao-proxy",
+      "target": "custom-proxy-domain.list",
+      "url": "https://raw.githubusercontent.com/HenryChiao/mihomo_yamls/main/custom/proxy.list",
+      "route": "PROXY",
+      "enabled": false
+    },
+    {
+      "id": "henrychiao-fake-ip-filter",
+      "target": "fake-ip-filter-domain.list",
+      "url": "https://raw.githubusercontent.com/HenryChiao/mihomo_yamls/main/custom/domain/fake-ip-filter.list",
+      "route": "DNS_FAKE_IP_FILTER",
+      "enabled": false
+    }
+  ]
+}

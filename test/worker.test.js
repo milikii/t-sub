@@ -71,7 +71,8 @@ test("worker login, render, and one-time subscription flow", async () => {
   assert.match(resetBody.template.body, /external-ui-url:/);
   assert.match(resetBody.template.body, /MATCH,🚀 节点选择/);
   assert.deepEqual(resetBody.template.variables, [
-    { name: "TAILSCALE_AUTH_KEY", required: true, defaultValue: "" },
+    { name: "HOME_DOMAIN", required: false, defaultValue: "19970626.xyz" },
+    { name: "TS_DOMAIN", required: false, defaultValue: "tailc1b432.ts.net" },
   ]);
 
   const saveAndroidWithoutVariables = await worker.fetch(
@@ -92,7 +93,8 @@ test("worker login, render, and one-time subscription flow", async () => {
   );
   assert.equal(saveAndroidWithoutVariables.status, 200);
   assert.deepEqual((await saveAndroidWithoutVariables.json()).template.variables, [
-    { name: "TAILSCALE_AUTH_KEY", required: true, defaultValue: "" },
+    { name: "HOME_DOMAIN", required: false, defaultValue: "" },
+    { name: "TS_DOMAIN", required: false, defaultValue: "" },
   ]);
 
   const customTemplate = await worker.fetch(
@@ -248,7 +250,7 @@ test("worker login, render, and one-time subscription flow", async () => {
       body: JSON.stringify({
         templateId: "android",
         nodesText: "ss://YWVzLTEyOC1nY206cGFzc0BleGFtcGxlLmNvbTo4Mzg4#Sample",
-        variables: { profileName: "E2E", tailScaleAuthKey: "tskey-auth-test" },
+        variables: {},
         ttlSeconds: 60,
       }),
     }),
@@ -267,7 +269,11 @@ test("worker login, render, and one-time subscription flow", async () => {
   const yaml = await firstGet.text();
   assert.match(yaml, /proxies:/);
   assert.match(yaml, /name: "Sample"/);
-  assert.match(yaml, /auth-key: "tskey-auth-test"/);
+  assert.doesNotMatch(yaml, /auth-key:/);
+  assert.match(yaml, /state-dir: \.\/tailscale/);
+  assert.match(yaml, /RULE-SET,custom-direct-domain,DIRECT/);
+  assert.match(yaml, /RULE-SET,custom-proxy-domain,🚀 节点选择/);
+  assert.match(yaml, /RULE-SET,google-play-domain,🚀 节点选择/);
   assert.match(yaml, /MATCH,🚀 节点选择/);
 
   const secondGet = await worker.fetch(new Request(body.url), env);
@@ -300,7 +306,7 @@ test("one-time subscription can disable grace replay", async () => {
       body: JSON.stringify({
         templateId: "android",
         nodesText: "ss://YWVzLTEyOC1nY206cGFzc0BleGFtcGxlLmNvbTo4Mzg4#Sample",
-        variables: { PROFILE_NAME: "E2E", TAILSCALE_AUTH_KEY: "tskey-auth-test" },
+        variables: {},
       }),
     }),
     env,

@@ -15,26 +15,43 @@ export const INDEX_HTML = `<!doctype html>
 export const STYLES_CSS = `
 :root {
   color-scheme: light;
-  --bg: #f6f7f4;
+  --bg: #eef2f7;
+  --surface: #f8fafc;
   --panel: #ffffff;
-  --ink: #17201b;
-  --muted: #68746e;
-  --line: #d8ded9;
-  --accent: #176b55;
+  --panel-strong: #f1f5f9;
+  --ink: #0f172a;
+  --muted: #475569;
+  --soft: #64748b;
+  --line: #d8e0eb;
+  --line-strong: #b8c4d6;
+  --accent: #0f766e;
+  --accent-soft: #ccfbf1;
   --accent-ink: #ffffff;
-  --danger: #a83232;
-  --warn: #8c5b12;
-  --code: #102019;
-  --shadow: 0 12px 30px rgba(19, 31, 24, 0.08);
-  font-family: "Aptos", "Segoe UI", sans-serif;
+  --danger: #b42318;
+  --danger-soft: #fff1f0;
+  --warn: #a15c07;
+  --warn-soft: #fff7ed;
+  --code: #111827;
+  --code-bg: #0b1220;
+  --shadow: 0 18px 55px rgba(15, 23, 42, 0.12);
+  --shadow-soft: 0 8px 22px rgba(15, 23, 42, 0.08);
+  font-family: Inter, "Plus Jakarta Sans", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 * { box-sizing: border-box; }
+html {
+  min-width: 0;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--bg);
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.06), transparent 240px),
+    radial-gradient(circle at 16% 0%, rgba(20, 184, 166, 0.14), transparent 260px),
+    var(--bg);
   color: var(--ink);
+  overflow-x: hidden;
 }
 
 button, input, textarea, select {
@@ -45,16 +62,42 @@ button {
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--ink);
-  min-height: 38px;
-  padding: 8px 12px;
+  min-height: 40px;
+  padding: 9px 12px;
   border-radius: 6px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 700;
+  line-height: 1;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: var(--panel-strong);
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(20, 184, 166, 0.24);
+  outline-offset: 2px;
 }
 
 button.primary {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--accent-ink);
+  box-shadow: 0 10px 22px rgba(15, 118, 110, 0.22);
+}
+
+button.primary:hover:not(:disabled) {
+  border-color: #115e59;
+  background: #115e59;
 }
 
 button.danger {
@@ -70,7 +113,7 @@ label {
   display: grid;
   gap: 6px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -80,8 +123,9 @@ input, textarea, select {
   border-radius: 6px;
   background: #fff;
   color: var(--ink);
-  padding: 10px 11px;
-  min-height: 40px;
+  padding: 10px 12px;
+  min-height: 42px;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
 
 textarea, code, pre {
@@ -93,9 +137,9 @@ textarea {
 }
 
 .app-shell {
-  width: min(1480px, calc(100vw - 32px));
+  width: min(1540px, calc(100vw - 32px));
   margin: 0 auto;
-  padding: 20px 0 32px;
+  padding: 18px 0 32px;
 }
 
 .topbar {
@@ -103,39 +147,113 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(216, 224, 235, 0.92);
+  border-radius: 8px;
+  box-shadow: var(--shadow-soft);
+  padding: 12px;
+  backdrop-filter: blur(16px);
 }
 
 .brand {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--code-bg);
+  color: #99f6e4;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.brand-copy {
+  min-width: 0;
 }
 
 .brand h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 21px;
   letter-spacing: 0;
+  line-height: 1.1;
 }
 
 .brand span {
   color: var(--muted);
   font-size: 13px;
+  display: block;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-strip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.metric {
+  min-height: 42px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--muted);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  font-size: 13px;
+}
+
+.metric strong {
+  color: var(--ink);
+}
+
+.metric-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
+}
+
+.icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
 }
 
 .login-panel {
-  width: min(420px, 100%);
+  width: min(440px, 100%);
   margin: 14vh auto 0;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: var(--shadow);
-  padding: 24px;
+  padding: 26px;
 }
 
 .login-panel h1 {
   margin: 0 0 6px;
-  font-size: 24px;
+  font-size: 26px;
+  letter-spacing: 0;
 }
 
 .login-panel p {
@@ -150,7 +268,7 @@ textarea {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(380px, 0.95fr);
+  grid-template-columns: minmax(410px, 0.92fr) minmax(0, 1.08fr);
   gap: 16px;
   align-items: start;
 }
@@ -159,8 +277,9 @@ textarea {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-soft);
   min-width: 0;
+  overflow: hidden;
 }
 
 .panel-header {
@@ -169,12 +288,25 @@ textarea {
   justify-content: space-between;
   gap: 10px;
   border-bottom: 1px solid var(--line);
-  padding: 14px 16px;
+  padding: 13px 16px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.panel-title .icon {
+  color: var(--accent);
 }
 
 .panel-header h2 {
   margin: 0;
   font-size: 16px;
+  line-height: 1.2;
 }
 
 .panel-body {
@@ -182,16 +314,21 @@ textarea {
 }
 
 .nodes-input {
-  min-height: 260px;
+  min-height: 300px;
 }
 
 .template-editor {
-  min-height: 360px;
+  min-height: 432px;
+  background: var(--code-bg);
+  color: #dbeafe;
+  border-color: #1e293b;
+  line-height: 1.48;
+  tab-size: 2;
 }
 
 .split {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   gap: 14px;
 }
 
@@ -199,43 +336,58 @@ textarea {
   display: grid;
   gap: 8px;
   align-content: start;
+  min-width: 0;
 }
 
 .template-item {
   text-align: left;
   min-height: auto;
-  padding: 10px;
+  padding: 11px;
+  display: grid;
+  gap: 5px;
+  justify-content: stretch;
+  line-height: 1.25;
+  background: #fbfdff;
 }
 
 .template-item.active {
   border-color: var(--accent);
+  background: var(--accent-soft);
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .template-item strong {
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .template-item span {
   color: var(--muted);
   display: block;
   font-size: 12px;
-  margin-top: 2px;
+  line-height: 1.35;
 }
 
 .actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .result {
   display: grid;
   gap: 12px;
-  border: 1px solid var(--line);
+  border: 1px solid #99f6e4;
   border-radius: 8px;
   padding: 14px;
-  background: #fbfcfa;
+  background: linear-gradient(180deg, #f0fdfa, #ffffff);
+}
+
+.result strong {
+  color: #115e59;
 }
 
 .result-url {
@@ -256,7 +408,9 @@ textarea {
   height: 192px;
   image-rendering: pixelated;
   border: 1px solid var(--line);
+  border-radius: 8px;
   background: #fff;
+  padding: 8px;
 }
 
 .notice {
@@ -266,14 +420,23 @@ textarea {
 
 .error {
   color: var(--danger);
-  background: #fff4f2;
-  border: 1px solid #f1cbc5;
+  background: var(--danger-soft);
+  border: 1px solid #fecaca;
   border-radius: 6px;
   padding: 10px;
+  font-weight: 650;
 }
 
 .ok {
   color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }
 
 @media (max-width: 980px) {
@@ -294,8 +457,28 @@ textarea {
     align-items: flex-start;
     flex-direction: column;
   }
+  .brand {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+  }
+  .panel-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .actions {
+    width: 100%;
+  }
+  .actions button {
+    flex: 1 1 auto;
+  }
   .result-url {
     grid-template-columns: 1fr;
+  }
+  .qr-wrap {
+    justify-content: center;
   }
 }
 `;
@@ -366,18 +549,30 @@ function render() {
   app.innerHTML = \`
     <header class="topbar">
       <div class="brand">
-        <h1>t-sub</h1>
-        <span>私有的一次性 mihomo 配置交付工具</span>
+        <div class="brand-mark" aria-hidden="true">\${icon("terminal")}</div>
+        <div class="brand-copy">
+          <h1>t-sub</h1>
+          <span>私有的一次性 mihomo 配置交付工具</span>
+        </div>
       </div>
       <div class="actions">
-        <button id="reloadTemplates">刷新</button>
-        <button id="logout">退出</button>
+        <button id="reloadTemplates" type="button">\${icon("refresh")}刷新</button>
+        <button id="logout" type="button">\${icon("logout")}退出</button>
       </div>
     </header>
+    <div class="status-strip" aria-label="工作区状态">
+      <div class="metric"><span class="metric-dot"></span><strong>\${state.templates.length}</strong> 个模板</div>
+      <div class="metric">\${icon("layers")}当前：<strong>\${escapeHtml(template?.name || "未选择")}</strong></div>
+      <div class="metric">\${icon("file")}节点行：<strong>\${nodeLineCount(state.nodesText)}</strong></div>
+      <div class="metric">\${icon("shield")}一次性链接，读取后失效</div>
+    </div>
     <div class="workspace">
       <section class="panel">
         <div class="panel-header">
-          <h2>生成一次性配置</h2>
+          <div class="panel-title">
+            \${icon("send")}
+            <h2>生成一次性配置</h2>
+          </div>
           <span class="notice">节点只用于本次临时生成，不会长期保存。</span>
         </div>
         <div class="panel-body stack">
@@ -394,18 +589,21 @@ function render() {
             \${renderVariableInputs(template)}
           </div>
           <div class="actions">
-            <button class="primary" id="generate" \${state.busy ? "disabled" : ""}>生成链接和二维码</button>
-            <button id="clearNodes">清空节点</button>
+            <button class="primary" id="generate" \${state.busy ? "disabled" : ""}>\${icon("spark")}生成链接和二维码</button>
+            <button id="clearNodes" type="button">\${icon("x")}清空节点</button>
           </div>
           \${state.result ? renderResult() : ""}
         </div>
       </section>
       <section class="panel">
         <div class="panel-header">
-          <h2>模板</h2>
+          <div class="panel-title">
+            \${icon("layout")}
+            <h2>模板工作台</h2>
+          </div>
           <div class="actions">
-            <button id="newTemplate">新建</button>
-            <button id="duplicateTemplate" \${template ? "" : "disabled"}>复制</button>
+            <button id="newTemplate" type="button">\${icon("plus")}新建</button>
+            <button id="duplicateTemplate" type="button" \${template ? "" : "disabled"}>\${icon("copy")}复制</button>
           </div>
         </div>
         <div class="panel-body split">
@@ -431,6 +629,7 @@ function render() {
 function renderLogin() {
   app.innerHTML = \`
     <section class="login-panel">
+      <div class="brand-mark" aria-hidden="true">\${icon("terminal")}</div>
       <h1>t-sub</h1>
       <p>请输入站主密码。</p>
       \${state.error ? \`<div class="error">\${escapeHtml(state.error)}</div>\` : ""}
@@ -438,7 +637,7 @@ function renderLogin() {
         <label>密码
           <input id="password" type="password" autocomplete="current-password" autofocus>
         </label>
-        <button class="primary" type="submit">登录</button>
+        <button class="primary" type="submit">\${icon("login")}登录</button>
       </form>
     </section>
   \`;
@@ -471,10 +670,10 @@ function renderVariableInputs(template) {
 function renderResult() {
   return \`
     <div class="result">
-      <strong>一次性链接过期时间：\${escapeHtml(new Date(state.result.expiresAt).toLocaleString())}</strong>
+      <strong>\${icon("clock")}一次性链接过期时间：\${escapeHtml(new Date(state.result.expiresAt).toLocaleString())}</strong>
       <div class="result-url">
         <input id="resultUrl" readonly value="\${escapeHtml(state.result.url)}">
-        <button id="copyUrl" type="button">复制</button>
+        <button id="copyUrl" type="button">\${icon("copy")}复制</button>
       </div>
       <div class="qr-wrap">
         <canvas id="qr" width="256" height="256" aria-label="二维码"></canvas>
@@ -503,9 +702,9 @@ function renderTemplateEditor(template) {
     </label>
     <div class="notice">节点注入：可写 {{PROXIES_YAML}} 精确指定位置；如果不写，系统会自动把节点插入顶层 proxies: 段。{{PROXY_NAMES_YAML}} 只在需要显式列出节点名称时使用。</div>
     <div class="actions">
-      <button class="primary" type="submit">保存模板</button>
-      <button id="resetTemplate" type="button" \${canReset ? "" : "disabled"}>恢复内置模板</button>
-      <button class="danger" id="deleteTemplate" type="button">删除</button>
+      <button class="primary" type="submit">\${icon("save")}保存模板</button>
+      <button id="resetTemplate" type="button" \${canReset ? "" : "disabled"}>\${icon("refresh")}恢复内置模板</button>
+      <button class="danger" id="deleteTemplate" type="button">\${icon("trash")}删除</button>
     </div>
   \`;
 }
@@ -577,8 +776,8 @@ function bindAppEvents() {
   const copyButton = document.querySelector("#copyUrl");
   if (copyButton) copyButton.addEventListener("click", async () => {
     await navigator.clipboard.writeText(state.result.url);
-    copyButton.textContent = "已复制";
-    setTimeout(() => { copyButton.textContent = "复制"; }, 1200);
+    copyButton.innerHTML = \`\${icon("check")}已复制\`;
+    setTimeout(() => { copyButton.innerHTML = \`\${icon("copy")}复制\`; }, 1200);
   });
 }
 
@@ -689,6 +888,36 @@ function platformLabel(platform) {
     windows: "Windows",
     custom: "自定义",
   }[platform] || platform;
+}
+
+function nodeLineCount(value) {
+  return String(value || "")
+    .split(/\\r?\\n/)
+    .map((line) => line.trim())
+    .filter(Boolean).length;
+}
+
+function icon(name) {
+  const icons = {
+    terminal: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></svg>',
+    refresh: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 0-15-6.7L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"/><path d="M21 21v-5h-5"/></svg>',
+    logout: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 19V5a2 2 0 0 0-2-2h-5"/><path d="M14 21h5a2 2 0 0 0 2-2"/></svg>',
+    layers: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>',
+    file: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h6"/></svg>',
+    shield: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-5"/></svg>',
+    send: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
+    spark: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h8l-1 8 11-14h-8l0-6Z"/></svg>',
+    x: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+    layout: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M3 9h18"/></svg>',
+    plus: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
+    copy: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><rect x="2" y="2" width="13" height="13" rx="2"/></svg>',
+    login: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/></svg>',
+    clock: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+    save: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>',
+    trash: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>',
+    check: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m20 6-11 11-5-5"/></svg>',
+  };
+  return icons[name] || "";
 }
 
 function drawQr(canvas, text) {

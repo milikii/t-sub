@@ -1,0 +1,2 @@
+# Tailnet domains that must resolve to real addresses.
+'*.{{TS_DOMAIN}}'

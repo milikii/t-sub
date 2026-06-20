@@ -25,13 +25,12 @@ test("android built-in template injects generated proxies into top-level proxies
   });
 
   assert.match(result.configYaml, /tun:\n  enable: true/);
-  assert.match(result.configYaml, /route-address:\n    - 0\.0\.0\.0\/0/);
+  assert.doesNotMatch(result.configYaml, /route-address:/);
   assert.doesNotMatch(result.configYaml, /::\/0/);
   assert.match(result.configYaml, /dns-hijack:\n    - any:53/);
   assert.doesNotMatch(result.configYaml, /tcp:\/\/any:53/);
-  assert.match(result.configYaml, /^ipv6: false$/m);
-  assert.match(result.configYaml, /dns:\n  enable: true\n  listen: 127\.0\.0\.1:1053\n  ipv6: false/);
-  assert.doesNotMatch(result.configYaml, /^ipv6: true$/m);
+  assert.match(result.configYaml, /^ipv6: true$/m);
+  assert.match(result.configYaml, /dns:\n  enable: true\n  listen: 127\.0\.0\.1:1053\n  ipv6: true/);
   assert.match(result.configYaml, /respect-rules: true/);
   assert.match(result.configYaml, /direct-nameserver:\n    - https:\/\/dns\.alidns\.com\/dns-query\n    - https:\/\/doh\.pub\/dns-query/);
   assert.match(result.configYaml, /direct-nameserver-follow-policy: true/);
@@ -41,7 +40,7 @@ test("android built-in template injects generated proxies into top-level proxies
   assert.match(result.configYaml, /dns\.msftncsi\.com/);
   assert.match(result.configYaml, /- '\*\.19970626\.xyz'/);
   assert.match(result.configYaml, /- '\*\.tailc1b432\.ts\.net'/);
-  assert.doesNotMatch(result.configYaml, /global-client-fingerprint/);
+  assert.match(result.configYaml, /global-client-fingerprint: chrome/);
   assert.match(result.configYaml, /proxies:\n  - name: "Android Sample"/);
   assert.match(result.configYaml, /type: tailscale/);
   assert.match(result.configYaml, /name: tailscale/);
@@ -53,65 +52,147 @@ test("android built-in template injects generated proxies into top-level proxies
   assert.match(result.configYaml, /ip-version: dual/);
   assert.match(result.configYaml, /IP-CIDR,192\.168\.1\.0\/24,tailscale,no-resolve/);
   assert.match(result.configYaml, /IP-CIDR,192\.168\.2\.0\/24,tailscale,no-resolve/);
-  assert.doesNotMatch(result.configYaml, /IP-CIDR6/);
-  assert.match(result.configYaml, /GEOSITE,openai,🇺🇸 美国节点/);
-  assert.match(result.configYaml, /GEOSITE,github,🇺🇸 美国节点/);
+  assert.match(result.configYaml, /IP-CIDR6,fd7a:115c:a1e0::\/48,tailscale,no-resolve/);
+  assert.match(result.configYaml, /GEOSITE,private,DIRECT/);
+  assert.match(result.configYaml, /GEOSITE,openai,🚀 节点选择/);
   assert.match(result.configYaml, /geosite:openai:/);
-  assert.match(result.configYaml, /external-ui-url: https:\/\/github\.com\/MetaCubeX\/metacubexd\/archive\/refs\/heads\/gh-pages\.zip/);
-  assert.match(result.configYaml, /url: https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/pt-direct\.list\n    interval: 86400/);
-  assert.match(result.configYaml, /url: https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/fcm-domain\.list\n    interval: 86400/);
-  assert.match(result.configYaml, /url: https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/fcm-ipcidr\.list\n    interval: 86400/);
+  assert.match(result.configYaml, /external-ui-url: "https:\/\/ghp\.564672\.xyz\/https:\/\/github\.com\/MetaCubeX\/metacubexd\/archive\/refs\/heads\/gh-pages\.zip"/);
+  assert.match(result.configYaml, /geoip: "https:\/\/ghp\.564672\.xyz\/https:\/\/github\.com\/MetaCubeX\/meta-rules-dat\/releases\/download\/latest\/geoip\.dat"/);
+  assert.match(result.configYaml, /url: "https:\/\/ghp\.564672\.xyz\/https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/custom-direct-domain\.list"\n    interval: 86400/);
+  assert.match(result.configYaml, /url: "https:\/\/ghp\.564672\.xyz\/https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/custom-proxy-domain\.list"\n    interval: 86400/);
+  assert.match(result.configYaml, /url: "https:\/\/ghp\.564672\.xyz\/https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/pt-direct\.list"\n    interval: 86400/);
+  assert.match(result.configYaml, /url: "https:\/\/ghp\.564672\.xyz\/https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/fcm-domain\.list"\n    interval: 86400/);
+  assert.match(result.configYaml, /url: "https:\/\/ghp\.564672\.xyz\/https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/fcm-ipcidr\.list"\n    interval: 86400/);
+  assert.match(result.configYaml, /url: "https:\/\/ghp\.564672\.xyz\/https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/google-play-domain\.list"\n    interval: 86400/);
   assert.doesNotMatch(result.configYaml, /proxy: ⚡ 自动选择\n    interval: 86400/);
+  assert.match(result.configYaml, /RULE-SET,custom-direct-domain,DIRECT/);
+  assert.match(result.configYaml, /RULE-SET,custom-proxy-domain,🚀 节点选择/);
   assert.match(result.configYaml, /RULE-SET,fcm-domain,📲 谷歌推送/);
   assert.match(result.configYaml, /RULE-SET,fcm-ipcidr,📲 谷歌推送,no-resolve/);
+  assert.match(result.configYaml, /RULE-SET,google-play-domain,🚀 节点选择/);
+  assert.ok(
+    result.configYaml.indexOf("RULE-SET,custom-direct-domain,DIRECT") <
+      result.configYaml.indexOf("RULE-SET,custom-proxy-domain,🚀 节点选择"),
+  );
+  assert.ok(
+    result.configYaml.indexOf("RULE-SET,custom-proxy-domain,🚀 节点选择") <
+      result.configYaml.indexOf("RULE-SET,fcm-domain,📲 谷歌推送"),
+  );
+  assert.ok(
+    result.configYaml.indexOf("RULE-SET,fcm-ipcidr,📲 谷歌推送,no-resolve") <
+      result.configYaml.indexOf("RULE-SET,google-play-domain,🚀 节点选择"),
+  );
+  assert.ok(
+    result.configYaml.indexOf("RULE-SET,google-play-domain,🚀 节点选择") <
+      result.configYaml.indexOf("RULE-SET,pt-direct,DIRECT"),
+  );
   assert.doesNotMatch(result.configYaml, /testingcf\.jsdelivr\.net/);
   assert.doesNotMatch(result.configYaml, /DOMAIN-SUFFIX,jsdelivr\.net/);
-  assert.match(result.configYaml, /name: 🏠 回家\n    type: select\n    proxies:\n      - tailscale\n      - DIRECT\n    url:/);
+  assert.match(result.configYaml, /name: 🏠 回家\n    type: select\n    proxies:\n      - tailscale\n      - DIRECT\n/);
   assert.doesNotMatch(result.configYaml, /name: 🏠 回家[\s\S]*?include-all: true/);
   assert.match(result.configYaml, /MATCH,🚀 节点选择/);
 });
 
-test("nas and windows templates keep tailscale out while using shared us jp dns policy", () => {
-  for (const id of ["nas", "windows"]) {
-    const result = renderConfig({
-      template: builtInTemplateById(id),
-      nodesText: [
-        "ss://YWVzLTEyOC1nY206cGFzc0B1cy5leGFtcGxlLmNvbTo4Mzg4#us-test",
-        "ss://YWVzLTEyOC1nY206cGFzc0BqcC5leGFtcGxlLmNvbTo4Mzg4#jp-test",
-      ].join("\n"),
-      variables: { PROFILE_NAME: id.toUpperCase() },
-    });
+test("nas template keeps tailscale and tailnet out while using shared us jp dns policy", () => {
+  const result = renderConfig({
+    template: builtInTemplateById("nas"),
+    nodesText: [
+      "ss://YWVzLTEyOC1nY206cGFzc0B1cy5leGFtcGxlLmNvbTo4Mzg4#us-test",
+      "ss://YWVzLTEyOC1nY206cGFzc0BqcC5leGFtcGxlLmNvbTo4Mzg4#jp-test",
+    ].join("\n"),
+    variables: { PROFILE_NAME: "NAS" },
+  });
 
-    assert.doesNotMatch(result.configYaml, /type: tailscale/);
-    assert.match(result.configYaml, /^ipv6: false$/m);
-    assert.match(result.configYaml, /dns:\n  enable: true\n  listen: 127\.0\.0\.1:1053\n  ipv6: false/);
-    assert.doesNotMatch(result.configYaml, /^ipv6: true$/m);
-    assert.match(result.configYaml, /respect-rules: true/);
-    assert.match(result.configYaml, /direct-nameserver-follow-policy: true/);
-    assert.doesNotMatch(result.configYaml, /connectivitycheck\.gstatic\.com/);
-    assert.doesNotMatch(result.configYaml, /time\.android\.com/);
-    assert.match(result.configYaml, /dns\.msftncsi\.com/);
-    assert.doesNotMatch(result.configYaml, /global-client-fingerprint/);
-    assert.match(result.configYaml, /\(\^\|\[\^a-z\]\)us\(\[\^a-z\]\|\$\)/);
-    assert.match(result.configYaml, /\(\^\|\[\^a-z\]\)jp\(\[\^a-z\]\|\$\)/);
-    assert.match(result.configYaml, /GEOSITE,private,DIRECT/);
-    assert.match(result.configYaml, /GEOSITE,openai,🇺🇸 美国节点/);
-    assert.match(result.configYaml, /GEOSITE,github,🇺🇸 美国节点/);
-    assert.doesNotMatch(result.configYaml, /testingcf\.jsdelivr\.net/);
-    assert.doesNotMatch(result.configYaml, /DOMAIN-SUFFIX,jsdelivr\.net/);
-    assert.match(result.configYaml, /geosite:openai:/);
-    assert.match(result.configYaml, /geosite:github:/);
-    assert.match(result.configYaml, /IP-CIDR,192\.168\.0\.0\/16,DIRECT,no-resolve/);
-    if (id === "nas") {
-      assert.match(result.configYaml, /allow-lan: true/);
-      assert.match(result.configYaml, /lan-allowed-ips:\n  - 192\.168\.0\.0\/16\n  - 10\.0\.0\.0\/8\n  - 172\.16\.0\.0\/12\n  - 100\.64\.0\.0\/10/);
-      assert.match(result.configYaml, /find-process-mode: off/);
-    } else {
-      assert.match(result.configYaml, /allow-lan: false/);
-      assert.doesNotMatch(result.configYaml, /lan-allowed-ips:/);
-      assert.match(result.configYaml, /find-process-mode: strict/);
-    }
-  }
+  assert.doesNotMatch(result.configYaml, /tailscale/i);
+  assert.doesNotMatch(result.configYaml, /tailc1b432/);
+  assert.doesNotMatch(result.configYaml, /ts\.net/);
+  assert.doesNotMatch(result.configYaml, /100\.64\.0\.0\/10/);
+  assert.match(result.configYaml, /tun:\n  enable: false/);
+  assert.doesNotMatch(result.configYaml, /auto-route:/);
+  assert.doesNotMatch(result.configYaml, /strict-route:/);
+  assert.doesNotMatch(result.configYaml, /dns-hijack:/);
+  assert.doesNotMatch(result.configYaml, /external-controller:/);
+  assert.match(result.configYaml, /^ipv6: false$/m);
+  assert.match(result.configYaml, /dns:\n  enable: true\n  listen: 127\.0\.0\.1:1053\n  ipv6: false/);
+  assert.doesNotMatch(result.configYaml, /^ipv6: true$/m);
+  assert.match(result.configYaml, /respect-rules: true/);
+  assert.match(result.configYaml, /direct-nameserver-follow-policy: true/);
+  assert.doesNotMatch(result.configYaml, /connectivitycheck\.gstatic\.com/);
+  assert.doesNotMatch(result.configYaml, /time\.android\.com/);
+  assert.match(result.configYaml, /dns\.msftncsi\.com/);
+  assert.doesNotMatch(result.configYaml, /global-client-fingerprint/);
+  assert.match(result.configYaml, /\(\^\|\[\^a-z\]\)us\(\[\^a-z\]\|\$\)/);
+  assert.match(result.configYaml, /\(\^\|\[\^a-z\]\)jp\(\[\^a-z\]\|\$\)/);
+  assert.match(result.configYaml, /GEOSITE,private,DIRECT/);
+  assert.match(result.configYaml, /DOMAIN-SUFFIX,19970626\.xyz,DIRECT/);
+  assert.match(result.configYaml, /rule-providers:/);
+  assert.match(result.configYaml, /url: "https:\/\/ghp\.564672\.xyz\/https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/custom-direct-domain\.list"\n    interval: 86400/);
+  assert.match(result.configYaml, /url: "https:\/\/ghp\.564672\.xyz\/https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/custom-proxy-domain\.list"\n    interval: 86400/);
+  assert.match(result.configYaml, /url: "https:\/\/ghp\.564672\.xyz\/https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/pt-direct\.list"\n    interval: 86400/);
+  assert.match(result.configYaml, /RULE-SET,custom-direct-domain,DIRECT/);
+  assert.match(result.configYaml, /RULE-SET,custom-proxy-domain,🚀 节点选择/);
+  assert.match(result.configYaml, /RULE-SET,pt-direct,DIRECT/);
+  assert.ok(
+    result.configYaml.indexOf("RULE-SET,custom-proxy-domain,🚀 节点选择") <
+      result.configYaml.indexOf("GEOSITE,openai,🇺🇸 美国节点"),
+  );
+  assert.match(result.configYaml, /GEOSITE,openai,🇺🇸 美国节点/);
+  assert.match(result.configYaml, /GEOSITE,github,🇺🇸 美国节点/);
+  assert.doesNotMatch(result.configYaml, /testingcf\.jsdelivr\.net/);
+  assert.doesNotMatch(result.configYaml, /DOMAIN-SUFFIX,jsdelivr\.net/);
+  assert.match(result.configYaml, /geosite:openai:/);
+  assert.match(result.configYaml, /geosite:github:/);
+  assert.match(result.configYaml, /IP-CIDR,192\.168\.0\.0\/16,DIRECT,no-resolve/);
+  assert.match(result.configYaml, /allow-lan: true/);
+  assert.match(result.configYaml, /lan-allowed-ips:\n  - 192\.168\.0\.0\/16\n  - 10\.0\.0\.0\/8\n  - 172\.16\.0\.0\/12/);
+  assert.match(result.configYaml, /find-process-mode: off/);
+});
+
+test("windows template keeps tailscale out while using shared us jp dns policy", () => {
+  const result = renderConfig({
+    template: builtInTemplateById("windows"),
+    nodesText: [
+      "ss://YWVzLTEyOC1nY206cGFzc0B1cy5leGFtcGxlLmNvbTo4Mzg4#us-test",
+      "ss://YWVzLTEyOC1nY206cGFzc0BqcC5leGFtcGxlLmNvbTo4Mzg4#jp-test",
+    ].join("\n"),
+    variables: { PROFILE_NAME: "WINDOWS" },
+  });
+
+  assert.doesNotMatch(result.configYaml, /type: tailscale/);
+  assert.match(result.configYaml, /^ipv6: false$/m);
+  assert.match(result.configYaml, /dns:\n  enable: true\n  listen: 127\.0\.0\.1:1053\n  ipv6: false/);
+  assert.doesNotMatch(result.configYaml, /^ipv6: true$/m);
+  assert.match(result.configYaml, /respect-rules: true/);
+  assert.match(result.configYaml, /direct-nameserver-follow-policy: true/);
+  assert.doesNotMatch(result.configYaml, /connectivitycheck\.gstatic\.com/);
+  assert.doesNotMatch(result.configYaml, /time\.android\.com/);
+  assert.match(result.configYaml, /dns\.msftncsi\.com/);
+  assert.doesNotMatch(result.configYaml, /global-client-fingerprint/);
+  assert.match(result.configYaml, /\(\^\|\[\^a-z\]\)us\(\[\^a-z\]\|\$\)/);
+  assert.match(result.configYaml, /\(\^\|\[\^a-z\]\)jp\(\[\^a-z\]\|\$\)/);
+  assert.match(result.configYaml, /GEOSITE,private,DIRECT/);
+  assert.match(result.configYaml, /rule-providers:/);
+  assert.match(result.configYaml, /url: "https:\/\/ghp\.564672\.xyz\/https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/custom-direct-domain\.list"\n    interval: 86400/);
+  assert.match(result.configYaml, /url: "https:\/\/ghp\.564672\.xyz\/https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/custom-proxy-domain\.list"\n    interval: 86400/);
+  assert.match(result.configYaml, /url: "https:\/\/ghp\.564672\.xyz\/https:\/\/raw\.githubusercontent\.com\/milikii\/t-sub\/master\/rules\/pt-direct\.list"\n    interval: 86400/);
+  assert.match(result.configYaml, /RULE-SET,custom-direct-domain,DIRECT/);
+  assert.match(result.configYaml, /RULE-SET,custom-proxy-domain,🚀 节点选择/);
+  assert.match(result.configYaml, /RULE-SET,pt-direct,DIRECT/);
+  assert.ok(
+    result.configYaml.indexOf("RULE-SET,custom-proxy-domain,🚀 节点选择") <
+      result.configYaml.indexOf("GEOSITE,openai,🇺🇸 美国节点"),
+  );
+  assert.match(result.configYaml, /GEOSITE,openai,🇺🇸 美国节点/);
+  assert.match(result.configYaml, /GEOSITE,github,🇺🇸 美国节点/);
+  assert.doesNotMatch(result.configYaml, /testingcf\.jsdelivr\.net/);
+  assert.doesNotMatch(result.configYaml, /DOMAIN-SUFFIX,jsdelivr\.net/);
+  assert.match(result.configYaml, /geosite:openai:/);
+  assert.match(result.configYaml, /geosite:github:/);
+  assert.match(result.configYaml, /IP-CIDR,192\.168\.0\.0\/16,DIRECT,no-resolve/);
+  assert.match(result.configYaml, /IP-CIDR,100\.64\.0\.0\/10,DIRECT,no-resolve/);
+  assert.match(result.configYaml, /allow-lan: false/);
+  assert.doesNotMatch(result.configYaml, /lan-allowed-ips:/);
+  assert.match(result.configYaml, /find-process-mode: strict/);
 });
 
 test("saved templates always elevate PROFILE_NAME to required", () => {
@@ -128,7 +209,6 @@ test("saved templates always elevate PROFILE_NAME to required", () => {
   assert.deepEqual(template.variables, [
     { name: "PROFILE_NAME", required: true, defaultValue: "NAS" },
     { name: "HOME_DOMAIN", required: false, defaultValue: "" },
-    { name: "TS_DOMAIN", required: false, defaultValue: "" },
   ]);
 });
 

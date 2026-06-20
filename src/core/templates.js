@@ -6,26 +6,25 @@ export const DEFAULT_TEMPLATES = [
     id: "android",
     name: "Android",
     platform: "android",
-    description: "Android mihomo alpha 完整模板，包含 TUN、DNS、FCM、US/JP 分组和 Tailscale 回家（首次启动需要在日志里完成 Tailscale 登录）。",
+    description: "Android mihomo alpha 完整模板，包含 TUN、DNS、FCM、Play 商店下载、US/JP 分组和 Tailscale 回家（首次启动需要在日志里完成 Tailscale 登录）。",
     body: ANDROID_TEMPLATE_BODY,
     variables: [
       { name: "HOME_DOMAIN", required: false, defaultValue: "19970626.xyz" },
       { name: "TS_DOMAIN", required: false, defaultValue: "tailc1b432.ts.net" },
     ],
-    revision: 8,
+    revision: 10,
   },
   {
     id: "nas",
     name: "NAS",
     platform: "nas",
-    description: "适合 Debian NAS / docker mihomo 旁路由：仅允许私网/Tailscale 网段访问本机代理，不包含 Tailscale 出站（宿主已在 tailnet）。",
+    description: "适合 NAS 本机 Docker mihomo：只提供 HTTP/SOCKS 代理，显式关闭 TUN，不包含 Tailscale/ts.net/tailnet 规则。",
     body: NAS_TEMPLATE_BODY,
     variables: [
       { name: "PROFILE_NAME", required: true, defaultValue: "NAS" },
       { name: "HOME_DOMAIN", required: false, defaultValue: "19970626.xyz" },
-      { name: "TS_DOMAIN", required: false, defaultValue: "tailc1b432.ts.net" },
     ],
-    revision: 4,
+    revision: 7,
   },
   {
     id: "windows",
@@ -38,7 +37,7 @@ export const DEFAULT_TEMPLATES = [
       { name: "HOME_DOMAIN", required: false, defaultValue: "19970626.xyz" },
       { name: "TS_DOMAIN", required: false, defaultValue: "tailc1b432.ts.net" },
     ],
-    revision: 4,
+    revision: 5,
   },
 ];
 

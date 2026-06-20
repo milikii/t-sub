@@ -1,0 +1,13 @@
+# Android connectivity checks
+connectivitycheck.gstatic.com
+connectivitycheck.android.com
+time.android.com
+
+# Games and LAN-sensitive services
++.srv.nintendo.net
++.stun.playstation.net
++.xboxlive.com
+'*.battlenet.com.cn'
+'*.battlenet.com'
+'*.blzstatic.cn'
+'*.battle.net'

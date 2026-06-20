@@ -1,0 +1,11 @@
+# Local and home domains
+'*.lan'
+'*.local'
+'*.{{HOME_DOMAIN}}'
+localhost
+localhost.ptlogin2.qq.com
+
+# Desktop connectivity checks
+dns.msftncsi.com
++.msftconnecttest.com
++.msftncsi.com

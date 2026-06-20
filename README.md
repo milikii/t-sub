@@ -133,38 +133,45 @@ Workers & Pages -> t-sub -> Settings
 
 ## 模板占位符
 
-仓库里的内置默认模板在：
+仓库里的内置默认模板源文件在：
 
 ```text
-src/core/default-template-bodies.js
+templates/android.yaml
+templates/nas-debian.yaml
+templates/windows.yaml
 ```
+
+`src/core/default-template-bodies.js` 是生成产物，Cloudflare Worker 实际从这里打包默认模板。改完 `templates/*.yaml` 后运行 `npm run templates:generate`，提交 YAML 和生成后的 JS。
 
 Android 内置模板已经是完整 mihomo alpha 配置，不需要手写 `{{PROXIES_YAML}}`。系统会自动把你粘贴的节点插入顶层 `proxies:` 段，并保留模板里的兜底节点。
 
 三端内置模板现在按用途分开：
 
-- Android：开启 TUN、fake-ip DNS、FCM 规则、US/JP 分组，并内置一个 `type: tailscale` 的 `🏠 回家` 出站。访问 `192.168.1.0/24` 和 Tailscale `100.64.0.0/10` 会走回家，不影响 NAS/Windows 模板。
-- NAS：面向 Debian NAS / Docker 旁路由场景。`allow-lan: true`，但用 `lan-allowed-ips` 收紧到私网（包括 Docker 网桥常用的 `172.16.0.0/12`）和 Tailscale `100.64.0.0/10` 网段；只做 US/JP 分组、CN/私网直连和最终代理，**不包含 Tailscale 出站**（典型 NAS 上 Tailscale 由宿主 daemon 接管，subnet router 直接走系统路由），也不开放 Web 控制接口。`fake-ip-filter` 已包含 `*.19970626.xyz` / `*.tailc1b432.ts.net` 避免家用域名被 fake-ip 化。
-- Windows：面向本机桌面客户端，`allow-lan: false`，只监听本机控制接口，不包含 Tailscale。`fake-ip-filter` 同 NAS 模板。
+- Android：开启 TUN、fake-ip DNS、FCM 规则、Play 商店下载规则、US/JP 分组，并内置一个 `type: tailscale` 的 `🏠 回家` 出站。访问 `192.168.1.0/24` 和 Tailscale `100.64.0.0/10` 会走回家，不影响 NAS/Windows 模板。
+- NAS：面向 NAS 本机 Docker mihomo 代理容器。`allow-lan: true`，`tun.enable: false`，不接管路由、不做 DNS 劫持，只暴露 `7890` HTTP/SOCKS 代理端口；`lan-allowed-ips` 收紧到局域网私网（`192.168.0.0/16`、`10.0.0.0/8`、Docker 网桥常用的 `172.16.0.0/12`）。模板完全不包含 Tailscale、ts.net 或 `100.64.0.0/10` tailnet 规则，也不开放 Web 控制接口。`fake-ip-filter` 已包含 `*.19970626.xyz` 避免家用域名被 fake-ip 化。
+- Windows：面向本机桌面客户端，`allow-lan: false`，只监听本机控制接口，不包含 Tailscale 出站。`fake-ip-filter` 仍保留 `*.tailc1b432.ts.net`，方便桌面端访问 tailnet 域名时走真实解析。
 
 节点命名建议在订阅转换阶段给美国节点加 `us` 前缀、日本节点加 `jp` 前缀。模板也兼容常见地区词，例如 `美国`、`日本`、`USA`、`Japan`、`Tokyo`、`Los Angeles`。
 
-三端都会把 OpenAI 和 GitHub 走美国节点，把日本域名和常见日区服务走日本节点。YouTube、Netflix 这类媒体服务不强行固定地区，默认跟随 `🚀 节点选择`，避免干扰你手动选择日区或美区。
+NAS 和 Windows 会把 OpenAI/GitHub 走美国节点，把日本域名和常见日区服务走日本节点；Android 的 OpenAI 和 Play 商店下载规则跟随 `🚀 节点选择`。YouTube、Netflix 这类媒体服务不强行固定地区，默认跟随 `🚀 节点选择`，避免干扰你手动选择日区或美区。
 
-DNS 使用 fake-ip 与 `respect-rules`。直连域名使用阿里/腾讯 DoH，代理域名使用对应规则分流后的 DoH，避免直连域名被国外 DNS 解析、代理域名被国内 DNS 污染。内置模板默认关闭 Mihomo IPv6（顶层 `ipv6: false`，`dns.ipv6: false`），不返回 AAAA 记录，降低 IPv6 直连和 DNS 泄露风险。
+DNS 使用 fake-ip 与 `respect-rules`。直连域名使用阿里/腾讯 DoH，代理域名使用对应规则分流后的 DoH，避免直连域名被国外 DNS 解析、代理域名被国内 DNS 污染。NAS 和 Windows 默认关闭 Mihomo IPv6（顶层 `ipv6: false`，`dns.ipv6: false`）；Android 模板按新版基线开启 IPv6（顶层和 DNS 均为 `true`）。
 
 Android 模板的 WebUI/规则依赖：
 
 - WebUI：`MetaCubeX/metacubexd`，通过 `external-ui-url` 从 GitHub 下载。
 - Geo 数据：`MetaCubeX/meta-rules-dat` 的 `geoip.dat`、`geosite.dat`、`country.mmdb`、`GeoLite2-ASN.mmdb`。
-- 额外规则集：本仓库 `rules/` 目录里的 `pt-direct.list`、`fcm-domain.list` 和 `fcm-ipcidr.list`。
+- 额外规则集：本仓库 `rules/` 目录里的 `custom-direct-domain.list`、`custom-proxy-domain.list`、`pt-direct.list`、`fcm-domain.list`、`fcm-ipcidr.list` 和 `google-play-domain.list`。
+
+本项目按“模板”和“规则”分开维护：`templates/` 管三端完整配置模板，`rules/` 只放 `rule-providers` 会拉取的规则文件。规则公开路径继续保持 `/rules/*.list`，避免已经保存到客户端里的规则 URL 失效。
 
 `rule-providers` 默认走默认拨号器更新规则，不绑定具体代理组，避免启动时代理组未就绪导致规则集拉取失败。WebUI 的 `external-ui-url` 在 mihomo 配置里没有独立 `proxy` 字段；如果本地 WebUI 下载失败，可以直接使用在线版 `https://metacubex.github.io/metacubexd/`，后端地址填 `http://127.0.0.1:9090`。
 
-如果有网站需要强制直连，写入：
+如果有网站需要手动指定直连或代理，写入：
 
 ```text
-rules/pt-direct.list
+rules/custom-direct-domain.list  # 强制 DIRECT
+rules/custom-proxy-domain.list   # 强制走 🚀 节点选择
 ```
 
 每行一个域名规则：
@@ -174,7 +181,7 @@ rules/pt-direct.list
 example.org
 ```
 
-`+.example.com` 匹配 `example.com` 和它的所有子域名；裸域名只匹配该域名本身。提交并推送后，客户端下次规则集更新会通过 `RULE-SET,pt-direct,DIRECT` 生效。
+`+.example.com` 匹配 `example.com` 和它的所有子域名；裸域名只匹配该域名本身。提交并推送后，客户端下次规则集更新会生效。自定义直连/代理规则排在 PT、FCM、Google Play、OpenAI/GitHub、日区、CN 和最终 `MATCH` 前面；同一个域名不要同时放进两个自定义文件，如果重复，直连优先生效。PT/private tracker 这类长期直连规则继续放在 `rules/pt-direct.list`。
 
 Android 模板不需要在生成阶段填变量。Tailscale 出站走交互式登录：首次启动 mihomo 后查看日志，会有一条 `https://login.tailscale.com/...` URL，浏览器打开扫码或登录一次即可，state 持久化到 `state-dir: ./tailscale`，之后启动自动复用，不再需要手动操作。NAS 和 Windows 模板也不需要填变量，并且不包含 Tailscale 出站。
 
@@ -200,7 +207,7 @@ Android 端注意两点：
 
 ## NAS Docker 部署参考
 
-NAS 模板默认按"宿主已经在 Tailscale + mihomo 只做 HTTP/SOCKS 旁路由"假设。推荐 Docker bridge 跑 mihomo alpha 内核（≥ v1.19.25，已含全部 Tailscale 修复），互不污染宿主网络：
+NAS 模板默认按"本机 Docker 容器只提供局域网 HTTP/SOCKS 代理，不开启 TUN，不接 Tailscale"假设。推荐 Docker bridge 跑 mihomo alpha 内核，互不污染宿主网络：
 
 ```yaml
 # docker-compose.yml
@@ -235,18 +242,18 @@ curl -sSL "https://<your-t-sub>/render/<id>" -o ./mihomo/config.yaml
 docker compose up -d && docker logs -f mihomo
 ```
 
-局域网其他设备配 `http://<NAS_IP>:7890` 当 HTTP/SOCKS 代理就能用，无需改 DNS/网关。Tailscale 流量由宿主 daemon 处理，容器里命中 `IP-CIDR,100.64.0.0/10,DIRECT` 直接落到宿主路由表，不需要再装 `type: tailscale` 出站。Docker bridge 默认网段 `172.16.0.0/12` 已包含在模板的 `lan-allowed-ips` 里，容器内的 mihomo 不会因为来源 IP 不在白名单而拒绝连接。
+局域网其他设备配 `http://<NAS_IP>:7890` 当 HTTP/SOCKS 代理就能用，无需改 DNS/网关。这个容器不需要 `network_mode: host`、`cap_add: NET_ADMIN`、`/dev/net/tun` 或 `privileged: true`。NAS 模板不包含 Tailscale、ts.net 或 `100.64.0.0/10` tailnet 规则；如果 NAS 自己另有 Tailscale daemon，也不由这个 mihomo 模板接管。Docker bridge 默认网段 `172.16.0.0/12` 已包含在模板的 `lan-allowed-ips` 里，容器内的 mihomo 不会因为来源 IP 不在白名单而拒绝连接。
 
 ### 共享变量
 
-三个内置模板（Android / NAS / Windows）都暴露以下两个可改的模板变量，用来定制家用域名 / Tailnet 域名通配过滤：
+内置模板暴露以下可改变量，用来定制家用域名 / Tailnet 域名通配过滤：
 
 | 变量 | 默认值 | 出现位置 |
 |---|---|---|
-| `HOME_DOMAIN` | `19970626.xyz` | `fake-ip-filter` 通配；Android 模板的 `DOMAIN-SUFFIX,...,tailscale` 规则 |
-| `TS_DOMAIN` | `tailc1b432.ts.net` | 同上 |
+| `HOME_DOMAIN` | `19970626.xyz` | Android / NAS / Windows 的 `fake-ip-filter` 通配；Android 走 `tailscale`，NAS/Windows 走 `DIRECT` |
+| `TS_DOMAIN` | `tailc1b432.ts.net` | 仅 Android / Windows；Android 走 `tailscale`，Windows 只做 fake-ip 过滤 |
 
-Fork 此项目时直接改这两个变量的 `defaultValue`（`src/core/templates.js`）或者在 t-sub 网页"模板编辑→变量"里覆盖即可，不必再手改 YAML 主体。Android 模板的 `hosts` 表里仍硬编码了具体 IP 映射（`19970626.xyz: 192.168.2.220` 等），那是个人化的内网寻址表，fork 时一并替换。
+Fork 此项目时直接改这些变量的 `defaultValue`（`src/core/templates.js`）或者在 t-sub 网页"模板编辑→变量"里覆盖即可，不必再手改 YAML 主体。Android 模板的 `hosts` 表里仍硬编码了具体 IP 映射（`19970626.xyz: 192.168.1.220` 等），那是个人化的内网寻址表，fork 时在 `templates/android.yaml` 里一并替换，然后运行 `npm run templates:generate`。
 
 
 如果你想精确控制节点插入位置，就在模板里写 `{{PROXIES_YAML}}`。

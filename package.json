@@ -7,7 +7,10 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "test": "node --test",
+    "test": "npm run templates:check && node --test",
+    "templates:generate": "node scripts/generate-template-bodies.mjs",
+    "templates:check": "node scripts/generate-template-bodies.mjs --check",
+    "rules:update": "node scripts/update-rules.mjs",
     "hash-password": "node scripts/hash-password.mjs"
   },
   "cloudflare": {
