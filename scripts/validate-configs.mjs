@@ -4,7 +4,6 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-// Try to load js-yaml
 let yaml;
 try {
   yaml = await import("js-yaml");
@@ -13,7 +12,6 @@ try {
   process.exit(1);
 }
 
-// Dynamically import the modules
 const templatesPath = resolve(rootDir, "src/core/templates.js");
 const renderPath = resolve(rootDir, "src/core/render.js");
 const defaultRuleBodiesPath = resolve(rootDir, "src/core/default-rule-bodies.js");
@@ -28,6 +26,76 @@ import(`file://${templatesPath}`)
           });
       });
   });
+
+// ================ Forbidden strings ================
+const FORBIDDEN = [
+  "GEOSITE,",
+  "GEOIP,",
+  "geosite:",
+  "geoip:",
+  "geodata-mode",
+  "geo-auto-update",
+  "geox-url",
+  "country.mmdb",
+  "geoip.dat",
+  "geosite.dat",
+  "Loyalsoldier",
+  "v2ray-rules-dat",
+];
+
+// ================ Required providers (all templates) ================
+const COMMON_PROVIDERS = [
+  "private_domain",
+  "private_ip",
+  "cn_domain",
+  "cn_ip",
+  "openai_domain",
+  "github_domain",
+  "tracker_domain",
+  "jp_ip",
+  "custom-direct-domain",
+  "custom-proxy-domain",
+  "pt-direct-domain",
+  "misc-direct-domain",
+  "japan-services-domain",
+];
+
+// ================ Android-only providers ================
+const ANDROID_PROVIDERS = [
+  "googlefcm_domain",
+  "googleplay_domain",
+  "android-fcm-domain",
+  "android-google-play-domain",
+];
+
+// ================ Required proxy groups ================
+const COMMON_GROUPS = ["🚀 默认代理", "⚡ 全部自动", "🇯🇵 日本节点", "♻️ 日本自动", "🇺🇸 美国节点", "♻️ 美国自动"];
+
+// ================ Provider format checks ================
+const MRS_DOMAIN = new Set([
+  "private_domain",
+  "cn_domain",
+  "openai_domain",
+  "github_domain",
+  "tracker_domain",
+  "googlefcm_domain",
+  "googleplay_domain",
+]);
+
+const MRS_IPCidr = new Set(["private_ip", "cn_ip", "jp_ip"]);
+
+const TEXT_DOMAIN = new Set([
+  "custom-direct-domain",
+  "custom-proxy-domain",
+  "pt-direct-domain",
+  "misc-direct-domain",
+  "japan-services-domain",
+  "android-fcm-domain",
+  "android-google-play-domain",
+]);
+
+// ================ Old names that must NOT appear ================
+const OLD_NAMES = ["private", "cn", "geoip-cn", "openai", "github"];
 
 function runValidation(builtInTemplateById, DEFAULT_TEMPLATES, renderConfig, listRuleFiles) {
   const testNodes = [
@@ -47,7 +115,7 @@ function runValidation(builtInTemplateById, DEFAULT_TEMPLATES, renderConfig, lis
         PROFILE_NAME: id === "android" ? undefined : id.toUpperCase(),
         HOME_DOMAIN: "19970626.xyz",
         TS_DOMAIN: "tailc1b432.ts.net",
-        RULE_BASE_URL: `http://local.test/rules`,
+        RULE_BASE_URL: "http://local.test/rules",
       };
 
       const result = renderConfig({
@@ -56,151 +124,339 @@ function runValidation(builtInTemplateById, DEFAULT_TEMPLATES, renderConfig, lis
         variables,
       });
 
-      // Parse YAML
-      const doc = yaml.load(result.configYaml);
+      const rawYaml = result.configYaml;
+      const doc = yaml.load(rawYaml);
 
-      // Check no duplicate top-level keys
-      const topKeys = Object.keys(doc);
-      const keySet = new Set();
-      for (const key of topKeys) {
-        if (keySet.has(key)) {
-          console.error(`FAIL: Duplicate top-level key: ${key}`);
+      // ======================== A. Forbidden strings ========================
+      console.log("  A. Checking forbidden strings...");
+      for (const forbidden of FORBIDDEN) {
+        if (rawYaml.includes(forbidden)) {
+          console.error(`  FAIL: ${id} contains forbidden string "${forbidden}"`);
           failures++;
         }
-        keySet.add(key);
       }
 
-      // Check all RULE-SET have corresponding rule-providers
+      // ======================== B. Common provider check ========================
+      console.log("  B. Checking common providers...");
       const providers = Object.keys(doc["rule-providers"] || {});
+      for (const name of COMMON_PROVIDERS) {
+        if (!providers.includes(name)) {
+          console.error(`  FAIL: ${id} missing provider: ${name}`);
+          failures++;
+        }
+      }
+
+      // ======================== C. Android-specific providers ========================
+      console.log("  C. Checking platform-specific providers...");
+      if (id === "android") {
+        for (const name of ANDROID_PROVIDERS) {
+          if (!providers.includes(name)) {
+            console.error(`  FAIL: ${id} missing android provider: ${name}`);
+            failures++;
+          }
+        }
+      } else {
+        for (const name of ANDROID_PROVIDERS) {
+          if (providers.includes(name)) {
+            console.error(`  FAIL: ${id} should NOT have android provider: ${name}`);
+            failures++;
+          }
+        }
+      }
+
+      // ======================== D. Provider format checks ========================
+      console.log("  D. Checking provider formats...");
+      for (const name of MRS_DOMAIN) {
+        const p = doc["rule-providers"]?.[name];
+        if (p) {
+          if (p.behavior !== "domain") {
+            console.error(`  FAIL: ${id} ${name} should have behavior=domain, got ${p.behavior}`);
+            failures++;
+          }
+          if (p.format !== "mrs") {
+            console.error(`  FAIL: ${id} ${name} should have format=mrs, got ${p.format}`);
+            failures++;
+          }
+        }
+      }
+      for (const name of MRS_IPCidr) {
+        const p = doc["rule-providers"]?.[name];
+        if (p) {
+          if (p.behavior !== "ipcidr") {
+            console.error(`  FAIL: ${id} ${name} should have behavior=ipcidr, got ${p.behavior}`);
+            failures++;
+          }
+          if (p.format !== "mrs") {
+            console.error(`  FAIL: ${id} ${name} should have format=mrs, got ${p.format}`);
+            failures++;
+          }
+        }
+      }
+      for (const name of TEXT_DOMAIN) {
+        const p = doc["rule-providers"]?.[name];
+        if (p) {
+          if (p.behavior !== "domain") {
+            console.error(`  FAIL: ${id} ${name} should have behavior=domain, got ${p.behavior}`);
+            failures++;
+          }
+          if (p.format !== "text") {
+            console.error(`  FAIL: ${id} ${name} should have format=text, got ${p.format}`);
+            failures++;
+          }
+        }
+      }
+
+      // ======================== E. RULE-SET vs providers ========================
+      console.log("  E. Checking RULE-SET references vs providers...");
       const rules = doc.rules || [];
       for (const rule of rules) {
         if (typeof rule === "string" && rule.startsWith("RULE-SET,")) {
           const providerName = rule.split(",")[1];
           if (!providers.includes(providerName)) {
-            console.error(`FAIL: RULE-SET references undefined provider: ${providerName}`);
+            console.error(`  FAIL: ${id} RULE-SET references unknown provider: ${providerName}`);
             failures++;
           }
         }
       }
 
-      // Check all proxy group references exist
-      const groupNames = (doc["proxy-groups"] || []).map((g) => g.name);
-      const groupNameSet = new Set(groupNames);
-
-      // Verify proxy-groups references
-      for (const group of doc["proxy-groups"] || []) {
-        for (const ref of group.proxies || []) {
-          if (!groupNameSet.has(ref) && ref !== "DIRECT" && !ref.startsWith("♻️") && ref !== "tailscale") {
-            // Check if ref is a provider reference
-            const maybeProvider = group.use ? group.use.includes(ref) : false;
-            // Check if ref is a node name (from include-all-proxies)
-            if (!maybeProvider && !group["include-all-proxies"]) {
-              // Only flag if it's not in include-all mode
-              // Actually with include-all-proxies: true, node names are auto-detected
-              // Just check for logical correctness
-            }
-          }
-        }
-      }
-
-      // Check all rule targets are valid
+      // Check no old names
       for (const rule of rules) {
         if (typeof rule === "string") {
-          const parts = rule.split(",");
-          const target = parts[parts.length - 1].replace(/,no-resolve$/, "").trim();
-          if (target !== "DIRECT" && target !== "REJECT" && target !== "tailscale" && !target.startsWith("♻️")) {
-            if (target.includes("://")) continue; // skip URL-form rules
-            if (!groupNameSet.has(target) && target !== "DIRECT" && target !== "REJECT") {
-              // Might be a provider name - skip for now since include-all-proxies handles it
+          for (const old of OLD_NAMES) {
+            if (rule.includes(`RULE-SET,${old},`)) {
+              console.error(`  FAIL: ${id} uses old provider name in rule: ${rule}`);
+              failures++;
             }
           }
         }
       }
 
-      // Template-specific checks
+      // ======================== F. Strategy group existence ========================
+      console.log("  F. Checking proxy-group targets...");
+      const groupNames = new Set((doc["proxy-groups"] || []).map((g) => g.name));
+      for (const name of COMMON_GROUPS) {
+        if (!groupNames.has(name)) {
+          console.error(`  FAIL: ${id} missing proxy-group: ${name}`);
+          failures++;
+        }
+      }
+
       if (id === "android") {
-        // Exactly one tailscale proxy
-        const tailscaleProxies = (doc.proxies || []).filter((p) => p.type === "tailscale");
-        if (tailscaleProxies.length !== 1) {
-          console.error(`FAIL: Expected exactly 1 tailscale proxy, got ${tailscaleProxies.length}`);
+        if (!groupNames.has("🏠 回家")) {
+          console.error(`  FAIL: ${id} missing 🏠 回家 group`);
+          failures++;
+        }
+        if (!groupNames.has("📲 谷歌推送")) {
+          console.error(`  FAIL: ${id} missing 📲 谷歌推送 group`);
+          failures++;
+        }
+      } else {
+        if (groupNames.has("🏠 回家")) {
+          console.error(`  FAIL: ${id} should NOT have 🏠 回家 group`);
+          failures++;
+        }
+        if (groupNames.has("📲 谷歌推送")) {
+          console.error(`  FAIL: ${id} should NOT have 📲 谷歌推送 group`);
+          failures++;
+        }
+      }
+
+      // ======================== G. Rule order & targeting ========================
+      console.log("  G. Checking rule order and targeting...");
+      const ruleLines = rules.filter((r) => typeof r === "string");
+      const findRuleIndex = (target) => ruleLines.findIndex((r) => r.includes(target));
+
+      // custom-direct-domain before japan-services-domain
+      const cddIdx = findRuleIndex("custom-direct-domain");
+      const jsdIdx = findRuleIndex("japan-services-domain");
+      if (cddIdx >= 0 && jsdIdx >= 0 && cddIdx > jsdIdx) {
+        console.error(`  FAIL: ${id} custom-direct-domain should be before japan-services-domain`);
+        failures++;
+      }
+
+      // japan-services-domain before custom-proxy-domain
+      const cpdIdx = findRuleIndex("custom-proxy-domain");
+      if (jsdIdx >= 0 && cpdIdx >= 0 && jsdIdx > cpdIdx) {
+        console.error(`  FAIL: ${id} japan-services-domain should be before custom-proxy-domain`);
+        failures++;
+      }
+
+      // jp_ip before custom-proxy-domain
+      const jpIpIdx = findRuleIndex("jp_ip");
+      if (jpIpIdx >= 0 && cpdIdx >= 0 && jpIpIdx > cpdIdx) {
+        console.error(`  FAIL: ${id} jp_ip should be before custom-proxy-domain`);
+        failures++;
+      }
+
+      // custom-proxy-domain before cn_domain
+      const cnDomIdx = findRuleIndex("cn_domain");
+      if (cpdIdx >= 0 && cnDomIdx >= 0 && cpdIdx > cnDomIdx) {
+        console.error(`  FAIL: ${id} custom-proxy-domain should be before cn_domain`);
+        failures++;
+      }
+
+      // openai_domain -> 🇺🇸 美国节点
+      const openaiRule = ruleLines.find((r) => r.includes("openai_domain,"));
+      if (openaiRule && !openaiRule.includes("🇺🇸 美国节点")) {
+        console.error(`  FAIL: ${id} openai_domain should target 🇺🇸 美国节点`);
+        failures++;
+      }
+
+      // github_domain -> 🇺🇸 美国节点
+      const githubRule = ruleLines.find((r) => r.includes("github_domain,"));
+      if (githubRule && !githubRule.includes("🇺🇸 美国节点")) {
+        console.error(`  FAIL: ${id} github_domain should target 🇺🇸 美国节点`);
+        failures++;
+      }
+
+      // japan-services-domain -> 🇯🇵 日本节点
+      const japanRule = ruleLines.find((r) => r.includes("japan-services-domain,"));
+      if (japanRule && !japanRule.includes("🇯🇵 日本节点")) {
+        console.error(`  FAIL: ${id} japan-services-domain should target 🇯🇵 日本节点`);
+        failures++;
+      }
+
+      // jp_ip -> 🇯🇵 日本节点
+      const jpIpRule = ruleLines.find((r) => r.startsWith("RULE-SET,jp_ip,"));
+      if (jpIpRule && !jpIpRule.includes("🇯🇵 日本节点")) {
+        console.error(`  FAIL: ${id} jp_ip should target 🇯🇵 日本节点`);
+        failures++;
+      }
+
+      // cn_domain -> DIRECT
+      const cnDomRule = ruleLines.find((r) => r.startsWith("RULE-SET,cn_domain,"));
+      if (cnDomRule && !cnDomRule.endsWith(",DIRECT")) {
+        console.error(`  FAIL: ${id} cn_domain should target DIRECT, got: ${cnDomRule}`);
+        failures++;
+      }
+
+      // cn_ip -> DIRECT,no-resolve
+      const cnIpRule = ruleLines.find((r) => r.startsWith("RULE-SET,cn_ip,"));
+      if (cnIpRule && !cnIpRule.endsWith(",no-resolve")) {
+        console.error(`  FAIL: ${id} cn_ip should target DIRECT,no-resolve, got: ${cnIpRule}`);
+        failures++;
+      }
+
+      // MATCH is last
+      const lastRule = ruleLines[ruleLines.length - 1];
+      if (lastRule && !lastRule.startsWith("MATCH,")) {
+        console.error(`  FAIL: ${id} last rule should be MATCH, got: ${lastRule}`);
+        failures++;
+      }
+
+      // ======================== H. Android-specific ========================
+      console.log("  H. Checking Android-specific rules...");
+      if (id === "android") {
+        const tsProxies = (doc.proxies || []).filter((p) => p.type === "tailscale");
+        if (tsProxies.length !== 1) {
+          console.error(`  FAIL: ${id} should have exactly 1 tailscale proxy, got ${tsProxies.length}`);
+          failures++;
+        }
+        if (tsProxies.length === 1 && tsProxies[0]["exit-node-allow-lan-access"] !== undefined) {
+          console.error(`  FAIL: ${id} tailscale should not have exit-node-allow-lan-access`);
           failures++;
         }
 
-        // Check exit-node-allow-lan-access is absent
-        for (const p of doc.proxies || []) {
-          if (p["exit-node-allow-lan-access"] !== undefined) {
-            console.error(`FAIL: exit-node-allow-lan-access should not be present`);
-            failures++;
-          }
-        }
-
-        // Check home group exists
-        if (!groupNameSet.has("🏠 回家")) {
-          console.error(`FAIL: Android missing 🏠 回家 group`);
-          failures++;
-        }
-
-        // Check 谷歌推送 group exists
-        if (!groupNameSet.has("📲 谷歌推送")) {
-          console.error(`FAIL: Android missing 📲 谷歌推送 group`);
-          failures++;
-        }
-
-        // Check no DOMAIN-SUFFIX,lan,tailscale or DOMAIN-SUFFIX,local,tailscale
+        // HOME_DOMAIN/TS_DOMAIN rules target 🏠 回家
         for (const rule of rules) {
-          if (typeof rule === "string" && (rule.match(/DOMAIN-SUFFIX,lan/) || rule.match(/DOMAIN-SUFFIX,local,/))) {
-            console.error(`FAIL: Should not have DOMAIN-SUFFIX,lan or DOMAIN-SUFFIX,local: ${rule}`);
-            failures++;
+          if (typeof rule === "string") {
+            if ((rule.includes("19970626.xyz") || rule.includes("tailc1b432.ts.net")) &&
+                !rule.includes("🏠 回家")) {
+              console.error(`  FAIL: ${id} HOME_DOMAIN or TS_DOMAIN rule should target 🏠 回家: ${rule}`);
+              failures++;
+            }
+            if ((rule.includes("100.64.0.0/10") || rule.includes("fd7a:115c:a1e0::/48") ||
+                 rule.includes("192.168.1.0/24") || rule.includes("192.168.2.0/24")) &&
+                !rule.includes("🏠 回家")) {
+              console.error(`  FAIL: ${id} home CIDR rule should target 🏠 回家: ${rule}`);
+              failures++;
+            }
           }
         }
-      }
 
-      if (id === "windows" || id === "nas") {
-        // No tailscale type
-        const tailscaleProxies = (doc.proxies || []).filter((p) => p.type === "tailscale");
-        if (tailscaleProxies.length > 0) {
-          console.error(`FAIL: ${id} should not have tailscale proxy`);
-          failures++;
+        // .lan/.local should target DIRECT
+        for (const rule of rules) {
+          if (typeof rule === "string") {
+            if ((rule.includes("DOMAIN-SUFFIX,lan,") || rule.includes("DOMAIN-SUFFIX,local,")) &&
+                !rule.endsWith(",DIRECT")) {
+              console.error(`  FAIL: ${id} .lan/.local should target DIRECT: ${rule}`);
+              failures++;
+            }
+          }
         }
 
-        // No 🏠 回家 group
-        if (groupNameSet.has("🏠 回家")) {
-          console.error(`FAIL: ${id} should not have 🏠 回家 group`);
+        if (doc["allow-lan"] !== false) {
+          console.error(`  FAIL: ${id} allow-lan should be false`);
           failures++;
         }
-      }
-
-      if (id === "nas") {
-        // tun.enable: true
         if (!doc.tun || doc.tun.enable !== true) {
-          console.error(`FAIL: NAS must have tun.enable: true`);
+          console.error(`  FAIL: ${id} tun.enable should be true`);
           failures++;
         }
-        if (!doc.tun || doc.tun["auto-route"] !== true) {
-          console.error(`FAIL: NAS must have auto-route: true`);
-          failures++;
-        }
-        if (!doc.tun || doc.tun["auto-redirect"] !== true) {
-          console.error(`FAIL: NAS must have auto-redirect: true`);
-          failures++;
-        }
-        if (!doc.tun || doc.tun["strict-route"] !== true) {
-          console.error(`FAIL: NAS must have strict-route: true`);
-          failures++;
-        }
-        if (doc["allow-lan"] !== true) {
-          console.error(`FAIL: NAS must have allow-lan: true`);
+
+        // Check no external-ui-url
+        if (rawYaml.includes("external-ui-url")) {
+          console.error(`  FAIL: ${id} should not have external-ui-url`);
           failures++;
         }
       }
 
+      // ======================== I. Windows-specific ========================
+      console.log("  I. Checking Windows-specific rules...");
       if (id === "windows") {
         if (doc["allow-lan"] !== false) {
-          console.error(`FAIL: Windows must have allow-lan: false`);
+          console.error(`  FAIL: ${id} allow-lan should be false`);
           failures++;
         }
         if (doc["find-process-mode"] !== "off") {
-          console.error(`FAIL: Windows must have find-process-mode: off`);
+          console.error(`  FAIL: ${id} find-process-mode should be off`);
+          failures++;
+        }
+        // No tailscale
+        const tsCount = (doc.proxies || []).filter((p) => p.type === "tailscale").length;
+        if (tsCount > 0) {
+          console.error(`  FAIL: ${id} should not have tailscale proxy`);
+          failures++;
+        }
+        // No tun required
+      }
+
+      // ======================== J. NAS-specific ========================
+      console.log("  J. Checking NAS-specific rules...");
+      if (id === "nas") {
+        if (doc["allow-lan"] !== true) {
+          console.error(`  FAIL: ${id} allow-lan should be true`);
+          failures++;
+        }
+        if (doc["mixed-port"] !== 7890) {
+          console.error(`  FAIL: ${id} mixed-port should be 7890`);
+          failures++;
+        }
+        if (!doc.tun || doc.tun.enable !== true) {
+          console.error(`  FAIL: ${id} tun.enable should be true`);
+          failures++;
+        }
+        if (!doc.tun || doc.tun["auto-route"] !== true) {
+          console.error(`  FAIL: ${id} tun.auto-route should be true`);
+          failures++;
+        }
+        if (!doc.tun || doc.tun["auto-redirect"] !== true) {
+          console.error(`  FAIL: ${id} tun.auto-redirect should be true`);
+          failures++;
+        }
+        if (!doc.tun || doc.tun["strict-route"] !== true) {
+          console.error(`  FAIL: ${id} tun.strict-route should be true`);
+          failures++;
+        }
+        const dh = doc.tun?.["dns-hijack"] || [];
+        if (!dh.includes("any:53") || !dh.includes("tcp://any:53")) {
+          console.error(`  FAIL: ${id} dns-hijack should include any:53 and tcp://any:53`);
+          failures++;
+        }
+        // No tailscale
+        const tsCount = (doc.proxies || []).filter((p) => p.type === "tailscale").length;
+        if (tsCount > 0) {
+          console.error(`  FAIL: ${id} should not have tailscale proxy`);
           failures++;
         }
       }
@@ -209,12 +465,11 @@ function runValidation(builtInTemplateById, DEFAULT_TEMPLATES, renderConfig, lis
 
     } catch (error) {
       console.error(`FAIL: ${error.message}`);
-      if (error.details) console.error("  Details:", error.details);
       failures++;
     }
   }
 
-  // Validate rule files
+  // ======================== K. Rule file validation ========================
   console.log("\n=== Validating rule files ===");
 
   const ruleFiles = listRuleFiles();
@@ -240,17 +495,28 @@ function runValidation(builtInTemplateById, DEFAULT_TEMPLATES, renderConfig, lis
 
     // Check for illegal whitespace
     for (const line of lines) {
-      if (/\s/.test(line.trim())) {
+      const trimmed = line.replace(/^\+\./, "").trim();
+      if (/\s/.test(trimmed)) {
         console.error(`FAIL: Illegal whitespace in ${filename}: ${line}`);
         failures++;
       }
     }
   }
 
-  // Check pt-direct-domain.list doesn't contain smzdm/pcbeta
+  // japan-services-domain.list required entries
+  const jsdContent = readFileSync(resolve(rootDir, "rules/japan-services-domain.list"), "utf8");
+  const requiredJapan = ["+.jp", "+.dmm.co.jp", "+.pixiv.net", "+.amazon.co.jp", "+.rakuten.co.jp", "+.yahoo.co.jp"];
+  for (const entry of requiredJapan) {
+    if (!jsdContent.includes(entry)) {
+      console.error(`FAIL: japan-services-domain.list missing: ${entry}`);
+      failures++;
+    }
+  }
+
+  // pt-direct-domain.list should not contain smzdm/pcbeta/personal home domain
   const ptContent = readFileSync(resolve(rootDir, "rules/pt-direct-domain.list"), "utf8");
-  if (ptContent.includes("smzdm") || ptContent.includes("pcbeta")) {
-    console.error(`FAIL: pt-direct-domain.list contains non-PT domains (smzdm/pcbeta)`);
+  if (ptContent.includes("smzdm") || ptContent.includes("pcbeta") || ptContent.includes("19970626")) {
+    console.error(`FAIL: pt-direct-domain.list contains non-PT domains`);
     failures++;
   }
 

@@ -1,4 +1,4 @@
-# Android mihomo 配置模板
+# Android mihomo 配置模板 — 生成于 {{GENERATED_AT}}
 # 内置 tailscale 出站用于回家，包含 FCM 推送和 Google Play 规则。
 # 生成时 {{RULE_BASE_URL}} 会自动替换为 Worker 的 /rules 地址。
 
@@ -9,22 +9,12 @@ mode: rule
 log-level: info
 ipv6: true
 global-client-fingerprint: chrome
-external-controller: 127.0.0.1:9090
-external-ui: ./ui
-external-ui-url: "https://ghp.564672.xyz/https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
-secret: ""
 unified-delay: true
 tcp-concurrent: true
 
 profile:
   store-selected: true
   store-fake-ip: true
-
-hosts:
-  "19970626.xyz": 192.168.1.220
-  "*.19970626.xyz": 192.168.1.220
-  "nas.tailc1b432.ts.net": 100.118.67.82
-  "vivo.tailc1b432.ts.net": 100.94.59.105
 
 tun:
   enable: true
@@ -74,102 +64,159 @@ dns:
     - https://1.1.1.1/dns-query
     - https://8.8.8.8/dns-query
   nameserver-policy:
-    geosite:cn:
+    "rule-set:cn_domain":
       - https://dns.alidns.com/dns-query
       - https://doh.pub/dns-query
-    geosite:private:
+    "rule-set:private_domain":
       - https://dns.alidns.com/dns-query
       - https://doh.pub/dns-query
+    "rule-set:japan-services-domain":
+      - https://1.1.1.1/dns-query
+      - https://8.8.8.8/dns-query
 
 rule-providers:
+  # 本地小规则 — text 格式，由 Worker /rules 托管
   custom-direct-domain:
     type: http
     behavior: domain
     format: text
-    path: ./ruleset/custom-direct-domain.list
+    path: ./ruleset/local/custom-direct-domain.list
     url: "{{RULE_BASE_URL}}/custom-direct-domain.list"
     interval: 86400
+    proxy: 🚀 默认代理
   custom-proxy-domain:
     type: http
     behavior: domain
     format: text
-    path: ./ruleset/custom-proxy-domain.list
+    path: ./ruleset/local/custom-proxy-domain.list
     url: "{{RULE_BASE_URL}}/custom-proxy-domain.list"
     interval: 86400
+    proxy: 🚀 默认代理
   pt-direct-domain:
     type: http
     behavior: domain
     format: text
-    path: ./ruleset/pt-direct-domain.list
+    path: ./ruleset/local/pt-direct-domain.list
     url: "{{RULE_BASE_URL}}/pt-direct-domain.list"
     interval: 86400
+    proxy: 🚀 默认代理
   misc-direct-domain:
     type: http
     behavior: domain
     format: text
-    path: ./ruleset/misc-direct-domain.list
+    path: ./ruleset/local/misc-direct-domain.list
     url: "{{RULE_BASE_URL}}/misc-direct-domain.list"
     interval: 86400
-  android-fcm-domain:
-    type: http
-    behavior: domain
-    format: text
-    path: ./ruleset/android-fcm-domain.list
-    url: "{{RULE_BASE_URL}}/android-fcm-domain.list"
-    interval: 86400
-  android-google-play-domain:
-    type: http
-    behavior: domain
-    format: text
-    path: ./ruleset/android-google-play-domain.list
-    url: "{{RULE_BASE_URL}}/android-google-play-domain.list"
-    interval: 86400
+    proxy: 🚀 默认代理
   japan-services-domain:
     type: http
     behavior: domain
     format: text
-    path: ./ruleset/japan-services-domain.list
+    path: ./ruleset/local/japan-services-domain.list
     url: "{{RULE_BASE_URL}}/japan-services-domain.list"
     interval: 86400
-  openai:
+    proxy: 🚀 默认代理
+  android-fcm-domain:
     type: http
     behavior: domain
-    format: mrs
-    path: ./ruleset/openai.mrs
-    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/openai.mrs"
+    format: text
+    path: ./ruleset/local/android-fcm-domain.list
+    url: "{{RULE_BASE_URL}}/android-fcm-domain.list"
     interval: 86400
-  private:
+    proxy: 🚀 默认代理
+  android-google-play-domain:
+    type: http
+    behavior: domain
+    format: text
+    path: ./ruleset/local/android-google-play-domain.list
+    url: "{{RULE_BASE_URL}}/android-google-play-domain.list"
+    interval: 86400
+    proxy: 🚀 默认代理
+  # 远程 MRS 规则 — 由 mihomo 客户端从 MetaCubeX 自动更新
+  private_domain:
     type: http
     behavior: domain
     format: mrs
-    path: ./ruleset/private.mrs
+    path: ./ruleset/meta/private_domain.mrs
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/private.mrs"
     interval: 86400
-  cn:
-    type: http
-    behavior: domain
-    format: mrs
-    path: ./ruleset/cn.mrs
-    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"
-    interval: 86400
-  geoip-cn:
+    proxy: 🚀 默认代理
+  private_ip:
     type: http
     behavior: ipcidr
     format: mrs
-    path: ./ruleset/geoip-cn.mrs
-    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs"
+    path: ./ruleset/meta/private_ip.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/private.mrs"
     interval: 86400
-  github:
+    proxy: 🚀 默认代理
+  cn_domain:
     type: http
     behavior: domain
     format: mrs
-    path: ./ruleset/github.mrs
+    path: ./ruleset/meta/cn_domain.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"
+    interval: 86400
+    proxy: 🚀 默认代理
+  cn_ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    path: ./ruleset/meta/cn_ip.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs"
+    interval: 86400
+    proxy: 🚀 默认代理
+  openai_domain:
+    type: http
+    behavior: domain
+    format: mrs
+    path: ./ruleset/meta/openai_domain.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/openai.mrs"
+    interval: 86400
+    proxy: 🚀 默认代理
+  github_domain:
+    type: http
+    behavior: domain
+    format: mrs
+    path: ./ruleset/meta/github_domain.mrs
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/github.mrs"
     interval: 86400
+    proxy: 🚀 默认代理
+  tracker_domain:
+    type: http
+    behavior: domain
+    format: mrs
+    path: ./ruleset/meta/tracker_domain.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/tracker.mrs"
+    interval: 86400
+    proxy: 🚀 默认代理
+  jp_ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    path: ./ruleset/meta/jp_ip.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/jp.mrs"
+    interval: 86400
+    proxy: 🚀 默认代理
+  googlefcm_domain:
+    type: http
+    behavior: domain
+    format: mrs
+    path: ./ruleset/meta/googlefcm_domain.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/googlefcm.mrs"
+    interval: 86400
+    proxy: 🚀 默认代理
+  googleplay_domain:
+    type: http
+    behavior: domain
+    format: mrs
+    path: ./ruleset/meta/googleplay_domain.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/google-play.mrs"
+    interval: 86400
+    proxy: 🚀 默认代理
 
-# Tailscale 出站，用于访问家庭内网。
-# 首次启动会在 mihomo 日志里打印 https://login.tailscale.com/... 登录 URL，
-# 浏览器登录一次即可，state 持久化到 state-dir，无需重复登录或配置 auth-key。
+# Tailscale 出站，仅用于回家访问家庭内网。
+# 首次启动在 mihomo 日志中打印 https://login.tailscale.com/... 登录 URL，
+# 浏览器登录一次即持久化到 state-dir，之后自动复用。
 proxies:
   - name: tailscale
     type: tailscale
@@ -184,60 +231,66 @@ proxies:
 proxy-groups:
   - name: 🚀 默认代理
     type: select
-    include-all-proxies: true
-    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
     proxies:
       - ⚡ 全部自动
       - 🇯🇵 日本节点
       - 🇺🇸 美国节点
+      - ♻️ 日本自动
+      - ♻️ 美国自动
       - 🏠 回家
       - DIRECT
   - name: ⚡ 全部自动
     type: url-test
-    lazy: true
+    include-all-proxies: true
+    exclude-filter: (?i)(^|[^a-z])流量|剩余|到期|套餐|官网|traffic|expire|剩餘|過期
+    url: https://cp.cloudflare.com/generate_204
     interval: 600
+    lazy: true
+    tolerance: 80
     timeout: 3000
     max-failed-times: 3
     expected-status: 204
     empty-fallback: REJECT
-    include-all-proxies: true
-    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
   - name: 🇯🇵 日本节点
     type: select
     include-all-proxies: true
-    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
+    exclude-filter: (?i)(^|[^a-z])流量|剩余|到期|套餐|官网|traffic|expire|剩餘|過期
     filter: (?i)(^|[^a-z])jp([^a-z]|$)|日本|Japan|Tokyo|Osaka|东京|大阪
     proxies:
       - ♻️ 日本自动
   - name: ♻️ 日本自动
     type: url-test
-    lazy: true
+    include-all-proxies: true
+    exclude-filter: (?i)(^|[^a-z])流量|剩余|到期|套餐|官网|traffic|expire|剩餘|過期
+    filter: (?i)(^|[^a-z])jp([^a-z]|$)|日本|Japan|Tokyo|Osaka|东京|大阪
+    url: https://cp.cloudflare.com/generate_204
     interval: 600
+    lazy: true
+    tolerance: 80
     timeout: 3000
     max-failed-times: 3
     expected-status: 204
     empty-fallback: REJECT
-    include-all-proxies: true
-    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
-    filter: (?i)(^|[^a-z])jp([^a-z]|$)|日本|Japan|Tokyo|Osaka|东京|大阪
   - name: 🇺🇸 美国节点
     type: select
     include-all-proxies: true
-    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
-    filter: (?i)(^|[^a-z])us([^a-z]|$)|美国|美國|USA|United States|America|Los Angeles|San Jose|Seattle|Dallas|Chicago|New York
+    exclude-filter: (?i)(^|[^a-z])流量|剩余|到期|套餐|官网|traffic|expire|剩餘|過期
+    filter: (?i)(^|[^a-z])us([^a-z]|$)|美国|United States|USA|America|Los Angeles|San Jose|Seattle|New York|Dallas|美國|洛杉矶|圣何塞|西雅图|纽约|达拉斯
     proxies:
       - ♻️ 美国自动
   - name: ♻️ 美国自动
     type: url-test
-    lazy: true
+    include-all-proxies: true
+    exclude-filter: (?i)(^|[^a-z])流量|剩余|到期|套餐|官网|traffic|expire|剩餘|過期
+    filter: (?i)(^|[^a-z])us([^a-z]|$)|美国|United States|USA|America|Los Angeles|San Jose|Seattle|New York|Dallas|美國|洛杉矶|圣何塞|西雅图|纽约|达拉斯
+    url: https://cp.cloudflare.com/generate_204
     interval: 600
+    lazy: true
+    tolerance: 80
     timeout: 3000
     max-failed-times: 3
     expected-status: 204
     empty-fallback: REJECT
-    include-all-proxies: true
-    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
-    filter: (?i)(^|[^a-z])us([^a-z]|$)|美国|美國|USA|United States|America|Los Angeles|San Jose|Seattle|Dallas|Chicago|New York
   - name: 🏠 回家
     type: select
     proxies:
@@ -247,37 +300,50 @@ proxy-groups:
     type: select
     proxies:
       - 🚀 默认代理
-      - ⚡ 全部自动
-      - 🇯🇵 日本节点
       - 🇺🇸 美国节点
       - DIRECT
 
 rules:
-  # HOME_DOMAIN / TS_DOMAIN / tailnet -> 回家（不是直接 tailscale）
+  # 1. 家庭 / Tailnet 回家
   - DOMAIN-SUFFIX,{{HOME_DOMAIN}},🏠 回家
   - DOMAIN-SUFFIX,{{TS_DOMAIN}},🏠 回家
   - IP-CIDR,192.168.1.0/24,🏠 回家,no-resolve
   - IP-CIDR,192.168.2.0/24,🏠 回家,no-resolve
   - IP-CIDR,100.64.0.0/10,🏠 回家,no-resolve
   - IP-CIDR6,fd7a:115c:a1e0::/48,🏠 回家,no-resolve
-  # 本地安全 - DIRECT
+  # 2. 本地安全直连
   - DOMAIN-SUFFIX,localhost,DIRECT
-  - RULE-SET,private,DIRECT
-  # 自定义规则
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - RULE-SET,private_domain,DIRECT
+  - RULE-SET,private_ip,DIRECT,no-resolve
+  # 3. 最高人工直连
   - RULE-SET,custom-direct-domain,DIRECT
+  # 4. 日本网站强制日本
+  - RULE-SET,japan-services-domain,🇯🇵 日本节点
+  - RULE-SET,jp_ip,🇯🇵 日本节点,no-resolve
+  # 5. 人工指定代理
   - RULE-SET,custom-proxy-domain,🚀 默认代理
-  # PT / 杂项直连
+  # 6. Android 推送和商店
+  - RULE-SET,googlefcm_domain,📲 谷歌推送
+  - RULE-SET,android-fcm-domain,📲 谷歌推送
+  - RULE-SET,googleplay_domain,🚀 默认代理
+  - RULE-SET,android-google-play-domain,🚀 默认代理
+  # 7. PT / Tracker / 杂项直连
+  - RULE-SET,tracker_domain,DIRECT
   - RULE-SET,pt-direct-domain,DIRECT
   - RULE-SET,misc-direct-domain,DIRECT
-  # FCM / Google Play
-  - RULE-SET,android-fcm-domain,📲 谷歌推送
-  - RULE-SET,android-google-play-domain,🚀 默认代理
-  # AI / 开发
-  - RULE-SET,openai,🚀 默认代理
-  - RULE-SET,github,🚀 默认代理
-  # 日本服务
-  - RULE-SET,japan-services-domain,🇯🇵 日本节点
-  # 国内
-  - RULE-SET,cn,DIRECT
-  - RULE-SET,geoip-cn,DIRECT,no-resolve
+  # 8. AI / 开发服务固定美国
+  - RULE-SET,openai_domain,🇺🇸 美国节点
+  - RULE-SET,github_domain,🇺🇸 美国节点
+  # 9. 国内直连
+  - RULE-SET,cn_domain,DIRECT
+  - RULE-SET,cn_ip,DIRECT,no-resolve
+  # 10. 兜底
   - MATCH,🚀 默认代理

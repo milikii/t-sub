@@ -28,11 +28,6 @@ tun:
   dns-hijack:
     - any:53
     - tcp://any:53
-  route-exclude-address:
-    - 127.0.0.0/8
-    - 10.0.0.0/8
-    - 172.16.0.0/12
-    - 192.168.0.0/16
 
 dns:
   enable: true
@@ -58,84 +53,123 @@ dns:
     - https://1.1.1.1/dns-query
     - https://8.8.8.8/dns-query
   nameserver-policy:
-    geosite:cn:
+    "rule-set:cn_domain":
       - https://dns.alidns.com/dns-query
       - https://doh.pub/dns-query
-    geosite:private:
+    "rule-set:private_domain":
       - https://dns.alidns.com/dns-query
       - https://doh.pub/dns-query
+    "rule-set:japan-services-domain":
+      - https://1.1.1.1/dns-query
+      - https://8.8.8.8/dns-query
 
 rule-providers:
+  # 本地小规则 — text 格式，由 Worker /rules 托管
   custom-direct-domain:
     type: http
     behavior: domain
     format: text
-    path: ./ruleset/custom-direct-domain.list
+    path: ./ruleset/local/custom-direct-domain.list
     url: "{{RULE_BASE_URL}}/custom-direct-domain.list"
     interval: 86400
+    proxy: 🚀 默认代理
   custom-proxy-domain:
     type: http
     behavior: domain
     format: text
-    path: ./ruleset/custom-proxy-domain.list
+    path: ./ruleset/local/custom-proxy-domain.list
     url: "{{RULE_BASE_URL}}/custom-proxy-domain.list"
     interval: 86400
+    proxy: 🚀 默认代理
   pt-direct-domain:
     type: http
     behavior: domain
     format: text
-    path: ./ruleset/pt-direct-domain.list
+    path: ./ruleset/local/pt-direct-domain.list
     url: "{{RULE_BASE_URL}}/pt-direct-domain.list"
     interval: 86400
+    proxy: 🚀 默认代理
   misc-direct-domain:
     type: http
     behavior: domain
     format: text
-    path: ./ruleset/misc-direct-domain.list
+    path: ./ruleset/local/misc-direct-domain.list
     url: "{{RULE_BASE_URL}}/misc-direct-domain.list"
     interval: 86400
+    proxy: 🚀 默认代理
   japan-services-domain:
     type: http
     behavior: domain
     format: text
-    path: ./ruleset/japan-services-domain.list
+    path: ./ruleset/local/japan-services-domain.list
     url: "{{RULE_BASE_URL}}/japan-services-domain.list"
     interval: 86400
-  private:
+    proxy: 🚀 默认代理
+  # 远程 MRS 规则 — 由 mihomo 客户端从 MetaCubeX 自动更新
+  private_domain:
     type: http
     behavior: domain
     format: mrs
-    path: ./ruleset/private.mrs
+    path: ./ruleset/meta/private_domain.mrs
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/private.mrs"
     interval: 86400
-  cn:
-    type: http
-    behavior: domain
-    format: mrs
-    path: ./ruleset/cn.mrs
-    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"
-    interval: 86400
-  geoip-cn:
+    proxy: 🚀 默认代理
+  private_ip:
     type: http
     behavior: ipcidr
     format: mrs
-    path: ./ruleset/geoip-cn.mrs
+    path: ./ruleset/meta/private_ip.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/private.mrs"
+    interval: 86400
+    proxy: 🚀 默认代理
+  cn_domain:
+    type: http
+    behavior: domain
+    format: mrs
+    path: ./ruleset/meta/cn_domain.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"
+    interval: 86400
+    proxy: 🚀 默认代理
+  cn_ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    path: ./ruleset/meta/cn_ip.mrs
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs"
     interval: 86400
-  openai:
+    proxy: 🚀 默认代理
+  openai_domain:
     type: http
     behavior: domain
     format: mrs
-    path: ./ruleset/openai.mrs
+    path: ./ruleset/meta/openai_domain.mrs
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/openai.mrs"
     interval: 86400
-  github:
+    proxy: 🚀 默认代理
+  github_domain:
     type: http
     behavior: domain
     format: mrs
-    path: ./ruleset/github.mrs
+    path: ./ruleset/meta/github_domain.mrs
     url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/github.mrs"
     interval: 86400
+    proxy: 🚀 默认代理
+  tracker_domain:
+    type: http
+    behavior: domain
+    format: mrs
+    path: ./ruleset/meta/tracker_domain.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/tracker.mrs"
+    interval: 86400
+    proxy: 🚀 默认代理
+  jp_ip:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    path: ./ruleset/meta/jp_ip.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/jp.mrs"
+    interval: 86400
+    proxy: 🚀 默认代理
 
 proxies:
 {{PROXIES_YAML}}
@@ -143,79 +177,96 @@ proxies:
 proxy-groups:
   - name: 🚀 默认代理
     type: select
-    include-all-proxies: true
-    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
     proxies:
       - ⚡ 全部自动
       - 🇯🇵 日本节点
       - 🇺🇸 美国节点
+      - ♻️ 日本自动
+      - ♻️ 美国自动
       - DIRECT
   - name: ⚡ 全部自动
     type: url-test
-    lazy: true
+    include-all-proxies: true
+    exclude-filter: (?i)(^|[^a-z])流量|剩余|到期|套餐|官网|traffic|expire|剩餘|過期
+    url: https://cp.cloudflare.com/generate_204
     interval: 600
+    lazy: true
+    tolerance: 80
     timeout: 3000
     max-failed-times: 3
     expected-status: 204
     empty-fallback: REJECT
-    include-all-proxies: true
-    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
   - name: 🇯🇵 日本节点
     type: select
     include-all-proxies: true
-    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
+    exclude-filter: (?i)(^|[^a-z])流量|剩余|到期|套餐|官网|traffic|expire|剩餘|過期
     filter: (?i)(^|[^a-z])jp([^a-z]|$)|日本|Japan|Tokyo|Osaka|东京|大阪
     proxies:
       - ♻️ 日本自动
   - name: ♻️ 日本自动
     type: url-test
-    lazy: true
+    include-all-proxies: true
+    exclude-filter: (?i)(^|[^a-z])流量|剩余|到期|套餐|官网|traffic|expire|剩餘|過期
+    filter: (?i)(^|[^a-z])jp([^a-z]|$)|日本|Japan|Tokyo|Osaka|东京|大阪
+    url: https://cp.cloudflare.com/generate_204
     interval: 600
+    lazy: true
+    tolerance: 80
     timeout: 3000
     max-failed-times: 3
     expected-status: 204
     empty-fallback: REJECT
-    include-all-proxies: true
-    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
-    filter: (?i)(^|[^a-z])jp([^a-z]|$)|日本|Japan|Tokyo|Osaka|东京|大阪
   - name: 🇺🇸 美国节点
     type: select
     include-all-proxies: true
-    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
-    filter: (?i)(^|[^a-z])us([^a-z]|$)|美国|美國|USA|United States|America|Los Angeles|San Jose|Seattle|Dallas|Chicago|New York
+    exclude-filter: (?i)(^|[^a-z])流量|剩余|到期|套餐|官网|traffic|expire|剩餘|過期
+    filter: (?i)(^|[^a-z])us([^a-z]|$)|美国|United States|USA|America|Los Angeles|San Jose|Seattle|New York|Dallas|美國|洛杉矶|圣何塞|西雅图|纽约|达拉斯
     proxies:
       - ♻️ 美国自动
   - name: ♻️ 美国自动
     type: url-test
-    lazy: true
+    include-all-proxies: true
+    exclude-filter: (?i)(^|[^a-z])流量|剩余|到期|套餐|官网|traffic|expire|剩餘|過期
+    filter: (?i)(^|[^a-z])us([^a-z]|$)|美国|United States|USA|America|Los Angeles|San Jose|Seattle|New York|Dallas|美國|洛杉矶|圣何塞|西雅图|纽约|达拉斯
+    url: https://cp.cloudflare.com/generate_204
     interval: 600
+    lazy: true
+    tolerance: 80
     timeout: 3000
     max-failed-times: 3
     expected-status: 204
     empty-fallback: REJECT
-    include-all-proxies: true
-    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
-    filter: (?i)(^|[^a-z])us([^a-z]|$)|美国|美國|USA|United States|America|Los Angeles|San Jose|Seattle|Dallas|Chicago|New York
 
 rules:
-  # 本地安全
+  # 1. 本地安全直连
+  - DOMAIN-SUFFIX,localhost,DIRECT
   - DOMAIN-SUFFIX,lan,DIRECT
   - DOMAIN-SUFFIX,local,DIRECT
-  - DOMAIN-SUFFIX,localhost,DIRECT
-  - DOMAIN-SUFFIX,{{HOME_DOMAIN}},DIRECT
-  - RULE-SET,private,DIRECT
-  # 自定义规则
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - RULE-SET,private_domain,DIRECT
+  - RULE-SET,private_ip,DIRECT,no-resolve
+  # 2. 最高人工直连
   - RULE-SET,custom-direct-domain,DIRECT
+  # 3. 日本网站强制日本
+  - RULE-SET,japan-services-domain,🇯🇵 日本节点
+  - RULE-SET,jp_ip,🇯🇵 日本节点,no-resolve
+  # 4. 人工指定代理，覆盖后面的 CN/PT/Tracker
   - RULE-SET,custom-proxy-domain,🚀 默认代理
-  # PT / 杂项直连
+  # 5. PT / Tracker / 杂项直连
+  - RULE-SET,tracker_domain,DIRECT
   - RULE-SET,pt-direct-domain,DIRECT
   - RULE-SET,misc-direct-domain,DIRECT
-  # AI / 开发
-  - RULE-SET,openai,🇺🇸 美国节点
-  - RULE-SET,github,🇺🇸 美国节点
-  # 日本服务
-  - RULE-SET,japan-services-domain,🇯🇵 日本节点
-  # 国内
-  - RULE-SET,cn,DIRECT
-  - RULE-SET,geoip-cn,DIRECT,no-resolve
+  # 6. AI / 开发服务固定美国
+  - RULE-SET,openai_domain,🇺🇸 美国节点
+  - RULE-SET,github_domain,🇺🇸 美国节点
+  # 7. 国内直连
+  - RULE-SET,cn_domain,DIRECT
+  - RULE-SET,cn_ip,DIRECT,no-resolve
+  # 8. 兜底
   - MATCH,🚀 默认代理

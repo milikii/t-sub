@@ -1,61 +1,68 @@
-# t-sub Rule Sets
+# t-sub 规则目录
 
-## Directory Structure
+## 目录结构
 
 ```
 rules/
 ├── README.md
-├── upstream-sources.json          # Upstream rule source definitions
-├── custom-direct-domain.list      # [manual] User-maintained DIRECT overrides
-├── custom-proxy-domain.list       # [manual] User-maintained proxy overrides
-├── pt-direct-domain.list          # [generated] PT/Tracker domains → DIRECT
-├── misc-direct-domain.list        # [manual] Misc non-PT domains → DIRECT
-├── android-fcm-domain.list        # [manual] FCM push domains → 📲 谷歌推送
-├── android-google-play-domain.list # [manual] Google Play domains → 🚀 默认代理
-├── japan-services-domain.list     # [manual] Japan service domains → 🇯🇵 日本节点
-├── fake-ip-filter-domain.list     # [manual] DNS fake-ip filter (all templates)
-├── fake-ip-filter-tailnet-domain.list # [manual] Tailnet DNS filter (Android/Windows)
-├── fake-ip-filter-android-domain.list  # [manual] Android DNS filter
-└── legacy/
-    └── fcm-ipcidr.list            # Deprecated /32 FCM IPs (unreliable)
+├── upstream-sources.json              # 上游规则源定义
+├── custom-direct-domain.list          # [manual] 用户自维护 DIRECT 覆盖
+├── custom-proxy-domain.list           # [manual] 用户自维护 PROXY 覆盖
+├── pt-direct-domain.list              # [generated] PT/Tracker 域名 → DIRECT
+├── misc-direct-domain.list            # [manual] 非 PT 杂项直连域名
+├── android-fcm-domain.list            # [manual] FCM 推送域名 → 📲 谷歌推送
+├── android-google-play-domain.list    # [manual] Google Play 域名 → 🚀 默认代理
+├── japan-services-domain.list         # [manual] 日本服务域名 → 🇯🇵 日本节点
+├── fake-ip-filter-domain.list         # [manual] DNS fake-ip 过滤（三端通用）
+├── fake-ip-filter-tailnet-domain.list # [manual] Tailnet DNS 过滤（Android/Windows）
+├── fake-ip-filter-android-domain.list # [manual] Android DNS 过滤
 ```
+
+## MRS-first 路线
+
+本项目采用纯 MRS-first 路线：
+
+- 公共大规则（`private_domain`、`cn_domain`、`openai_domain`、`github_domain`、`tracker_domain`、`jp_ip` 等）使用 MRS 格式，从 `MetaCubeX/meta-rules-dat` 远程拉取
+- 不使用 `GEOSITE`/`GEOIP`/`geosite.dat`/`geoip.dat`/`country.mmdb`
+- 不使用 `Loyalsoldier`/`v2ray-rules-dat`
+- 不配置 `geodata-mode`/`geox-url`
 
 ## Manual vs Generated
 
-- **manual**: Files never modified by `update-rules.mjs`. Edit by hand.
-- **generated**: Files that can be rebuilt from upstream sources via `npm run rules:update`. Enable sources in `upstream-sources.json` first.
+- **manual**：`update-rules.mjs` 不会修改的文件。手动编辑。
+- **generated**：可以通过 `npm run rules:update` 从上游源重建的文件。需要在 `upstream-sources.json` 中启用源。
 
-## Rule Files
+## 规则文件
 
-Rule files are served by the Worker at `GET /rules/<filename>` with whitelist protection.
+规则文件由 Worker 在 `GET /rules/<filename>` 提供，白名单保护。
 
-| File | Content | Route |
-|------|---------|-------|
-| `custom-direct-domain.list` | User domain overrides → DIRECT | `RULE-SET,custom-direct-domain,DIRECT` |
-| `custom-proxy-domain.list` | User domain overrides → proxy | `RULE-SET,custom-proxy-domain,🚀 默认代理` |
-| `pt-direct-domain.list` | PT/Tracker domains | `RULE-SET,pt-direct-domain,DIRECT` |
-| `misc-direct-domain.list` | Misc non-PT direct domains | `RULE-SET,misc-direct-domain,DIRECT` |
-| `android-fcm-domain.list` | FCM push (Android only) | `RULE-SET,android-fcm-domain,📲 谷歌推送` |
-| `android-google-play-domain.list` | Google Play (Android only) | `RULE-SET,android-google-play-domain,🚀 默认代理` |
-| `japan-services-domain.list` | Japan region services | `RULE-SET,japan-services-domain,🇯🇵 日本节点` |
+| 文件 | 内容 | 路由 |
+|------|------|------|
+| `custom-direct-domain.list` | 用户 DIRECT 覆盖 | `RULE-SET,custom-direct-domain,DIRECT` |
+| `custom-proxy-domain.list` | 用户 PROXY 覆盖 | `RULE-SET,custom-proxy-domain,🚀 默认代理` |
+| `pt-direct-domain.list` | PT 站点域名 | `RULE-SET,pt-direct-domain,DIRECT` |
+| `misc-direct-domain.list` | 杂项直连域名 | `RULE-SET,misc-direct-domain,DIRECT` |
+| `android-fcm-domain.list` | FCM 推送（仅 Android） | `RULE-SET,android-fcm-domain,📲 谷歌推送` |
+| `android-google-play-domain.list` | Google Play（仅 Android） | `RULE-SET,android-google-play-domain,🚀 默认代理` |
+| `japan-services-domain.list` | 日本服务域名 | `RULE-SET,japan-services-domain,🇯🇵 日本节点` |
 
-Other rule providers (private, cn, geoip-cn, openai, github) use MRS format from `MetaCubeX/meta-rules-dat`.
+其他规则 provider（`private_domain`、`private_ip`、`cn_domain`、`cn_ip`、`openai_domain`、`github_domain`、`tracker_domain`、`jp_ip`）使用 MRS 格式，从 `MetaCubeX/meta-rules-dat` 拉取。
 
-## Usage
+## 用法
 
 ```bash
-# Update generated rule files from enabled upstream sources
+# 从启用的上游源更新 generated 规则文件
 npm run rules:update
 
-# Check if rule bodies are in sync with Worker bundle
+# 检查规则文件与 Worker bundle 同步
 npm run rules:check
 
-# Generate Worker rule bundle
+# 生成 Worker 规则 bundle
 npm run rules:generate
 ```
 
-## Format
+## 格式
 
-One domain rule per line:
-- `+.example.com` matches `example.com` and all subdomains
-- `example.org` matches only `example.org`
+一行一条规则：
+- `+.example.com` 匹配 `example.com` 及其所有子域名
+- `example.org` 只匹配 `example.org`

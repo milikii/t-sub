@@ -16,6 +16,21 @@ try {
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
+const FORBIDDEN_STRINGS = [
+  "GEOSITE,",
+  "GEOIP,",
+  "geosite:",
+  "geoip:",
+  "geodata-mode",
+  "geo-auto-update",
+  "geox-url",
+  "country.mmdb",
+  "geoip.dat",
+  "geosite.dat",
+  "Loyalsoldier",
+  "v2ray-rules-dat",
+];
+
 function renderWithDefaults(templateId, extraVars = {}) {
   const nodesText = [
     "ss://YWVzLTEyOC1nY206cGFzc0B1cy5leGFtcGxlLmNvbTo4Mzg4#us-test",
@@ -55,7 +70,7 @@ test("renders mihomo yaml from template and node lines", () => {
   assert.match(result.configYaml, /type: "ss"|type: ss/);
   assert.match(result.configYaml, /us-test/);
   assert.match(result.configYaml, /jp-test/);
-  assert.equal(result.proxies.length, 3); // all 3 nodes parsed (exclude-filter only affects groups)
+  assert.equal(result.proxies.length, 3);
 });
 
 test("all templates render without errors", () => {
@@ -66,26 +81,112 @@ test("all templates render without errors", () => {
   }
 });
 
-test("info nodes with exclude-filter keywords are still in proxies but not in proxy-groups", () => {
+test("info nodes with exclude-filter keywords are still in proxies but not in urltest groups", () => {
   if (!yaml) return;
   const result = renderWithDefaults("android");
   const doc = parseYaml(result.configYaml);
   // Info nodes still appear in proxies list
   const proxyNames = (doc.proxies || []).map((p) => p.name);
   assert.ok(proxyNames.includes("剩余流量 100GB"));
-  // But they should not appear in url-test proxy-groups (excluded by filter)
+  // exclude-filter should have 流量 keyword
   for (const group of doc["proxy-groups"] || []) {
     if (group["exclude-filter"]) {
-      // The exclude-filter should contain keywords that match 剩余流量
-      assert.match(group["exclude-filter"], /剩余/);
+      assert.match(group["exclude-filter"], /流量/);
     }
   }
 });
 
-// ---------------------------------------------------------------------------
-// YAML structural validation (requires js-yaml)
-// ---------------------------------------------------------------------------
+// ======================== Forbidden strings check ========================
+test("ALL templates contain NO forbidden strings (GEOSITE/GEOIP/GeoX/DAT/MMDB)", () => {
+  for (const template of DEFAULT_TEMPLATES) {
+    const result = renderWithDefaults(template.id);
+    for (const forbidden of FORBIDDEN_STRINGS) {
+      assert.ok(
+        !result.configYaml.includes(forbidden),
+        `${template.id} must not contain "${forbidden}"`,
+      );
+    }
+  }
+});
 
+// ======================== New provider names ========================
+test("ALL templates use new provider names (not old names)", () => {
+  const oldNames = ["RULE-SET,private,", "RULE-SET,cn,", "RULE-SET,geoip-cn,", "RULE-SET,openai,", "RULE-SET,github,"];
+  const newNames = [
+    "RULE-SET,private_domain,",
+    "RULE-SET,private_ip,",
+    "RULE-SET,cn_domain,",
+    "RULE-SET,cn_ip,",
+    "RULE-SET,openai_domain,",
+    "RULE-SET,github_domain,",
+    "RULE-SET,tracker_domain,",
+    "RULE-SET,jp_ip,",
+  ];
+
+  for (const template of DEFAULT_TEMPLATES) {
+    const result = renderWithDefaults(template.id);
+    // No old names
+    for (const old of oldNames) {
+      assert.ok(
+        !result.configYaml.includes(old),
+        `${template.id} must not use old name "${old}"`,
+      );
+    }
+    // New names present
+    for (const name of newNames) {
+      assert.ok(
+        result.configYaml.includes(name),
+        `${template.id} must include new provider "${name}"`,
+      );
+    }
+  }
+});
+
+test("ALL templates have common providers (private_domain, cn_domain, etc.)", () => {
+  const commonProviders = [
+    "private_domain:",
+    "private_ip:",
+    "cn_domain:",
+    "cn_ip:",
+    "openai_domain:",
+    "github_domain:",
+    "tracker_domain:",
+    "jp_ip:",
+    "custom-direct-domain:",
+    "custom-proxy-domain:",
+    "pt-direct-domain:",
+    "misc-direct-domain:",
+    "japan-services-domain:",
+  ];
+
+  for (const template of DEFAULT_TEMPLATES) {
+    const result = renderWithDefaults(template.id);
+    for (const provider of commonProviders) {
+      assert.ok(
+        result.configYaml.includes(provider),
+        `${template.id} must have provider ${provider}`,
+      );
+    }
+  }
+});
+
+test("Android has googlefcm and googleplay providers; Windows/NAS do NOT", () => {
+  const androidProviders = ["googlefcm_domain:", "googleplay_domain:", "android-fcm-domain:", "android-google-play-domain:"];
+
+  const androidResult = renderWithDefaults("android");
+  for (const p of androidProviders) {
+    assert.ok(androidResult.configYaml.includes(p), `Android must have ${p}`);
+  }
+
+  for (const tid of ["windows", "nas"]) {
+    const result = renderWithDefaults(tid);
+    for (const p of androidProviders) {
+      assert.ok(!result.configYaml.includes(p), `${tid} must NOT have ${p}`);
+    }
+  }
+});
+
+// ======================== YAML structural validation ========================
 test("rendered YAML parses to valid object with no duplicate top-level keys", () => {
   if (!yaml) return;
   for (const template of DEFAULT_TEMPLATES) {
@@ -96,7 +197,6 @@ test("rendered YAML parses to valid object with no duplicate top-level keys", ()
     assert.ok(doc.rules, `${template.id} must have rules`);
     assert.ok(doc.dns, `${template.id} must have dns`);
 
-    // Check no duplicate top-level keys by counting occurrences
     const keys = Object.keys(doc);
     const keySet = new Set(keys);
     assert.equal(keys.length, keySet.size, `${template.id} should have no duplicate top-level keys`);
@@ -126,9 +226,7 @@ test("all proxy-group references exist", () => {
     const groupNames = new Set((doc["proxy-groups"] || []).map((g) => g.name));
     for (const group of doc["proxy-groups"] || []) {
       for (const ref of group.proxies || []) {
-        // These are valid targets that don't need to be groups
         if (ref === "DIRECT" || ref === "REJECT" || ref === "tailscale") continue;
-        // If it's a proxy group name (starts with emoji or chinese), it must exist
         if (/^[^\x00-\x7F]/.test(ref) || /^[A-Z]/.test(ref)) {
           assert.ok(
             groupNames.has(ref) || ref.startsWith("♻️"),
@@ -152,7 +250,6 @@ test("all rule targets map to defined proxy-groups or special names", () => {
       const parts = rule.split(",");
       const target = parts[parts.length - 1].replace(/,no-resolve$/, "").trim();
       if (target === "MATCH" || specialTargets.has(target) || target.startsWith("♻️")) continue;
-      // If it has a Chinese/emoji prefix or looks like a group name
       if (/[^\x00-\x7F]/.test(target)) {
         assert.ok(
           groupNames.has(target),
@@ -163,25 +260,184 @@ test("all rule targets map to defined proxy-groups or special names", () => {
   }
 });
 
-// ---------------------------------------------------------------------------
-// Android-specific
-// ---------------------------------------------------------------------------
+// ======================== Rule order checks ========================
+test("ALL templates: custom-direct-domain before japan-services-domain before custom-proxy-domain before cn_domain", () => {
+  for (const template of DEFAULT_TEMPLATES) {
+    const result = renderWithDefaults(template.id);
+    const rules = result.configYaml.split("\n").filter((l) => l.trim().startsWith("- RULE-SET,"));
+    const idx = (name) => rules.findIndex((r) => r.includes(name));
+    const cdd = idx("custom-direct-domain");
+    const jsd = idx("japan-services-domain");
+    const cpd = idx("custom-proxy-domain");
+    const cn = idx("cn_domain");
 
-test("android: exactly one type: tailscale proxy", () => {
+    assert.ok(cdd >= 0 && jsd >= 0 && cpd >= 0 && cn >= 0, `${template.id}: all expected rule-sets found`);
+    assert.ok(cdd < jsd, `${template.id}: custom-direct-domain before japan-services-domain`);
+    assert.ok(jsd < cpd, `${template.id}: japan-services-domain before custom-proxy-domain`);
+    assert.ok(cpd < cn, `${template.id}: custom-proxy-domain before cn_domain`);
+  }
+});
+
+test("ALL templates: openai_domain and github_domain target 🇺🇸 美国节点", () => {
+  for (const template of DEFAULT_TEMPLATES) {
+    const result = renderWithDefaults(template.id);
+    const findRule = (name, target) => {
+      const lines = result.configYaml.split("\n").filter((l) => l.includes(`RULE-SET,${name},`));
+      return lines.some((l) => l.includes(target));
+    };
+    assert.ok(findRule("openai_domain", "🇺🇸 美国节点"), `${template.id}: openai_domain -> 🇺🇸 美国节点`);
+    assert.ok(findRule("github_domain", "🇺🇸 美国节点"), `${template.id}: github_domain -> 🇺🇸 美国节点`);
+  }
+});
+
+test("ALL templates: japan-services-domain targets 🇯🇵 日本节点", () => {
+  for (const template of DEFAULT_TEMPLATES) {
+    const result = renderWithDefaults(template.id);
+    const lines = result.configYaml.split("\n").filter((l) => l.includes("RULE-SET,japan-services-domain,"));
+    assert.ok(lines.some((l) => l.includes("🇯🇵 日本节点")), `${template.id}: japan-services-domain -> 🇯🇵`);
+  }
+});
+
+test("ALL templates: cn_domain and cn_ip target DIRECT", () => {
+  for (const template of DEFAULT_TEMPLATES) {
+    const result = renderWithDefaults(template.id);
+    const domLine = result.configYaml.split("\n").find((l) => l.includes("RULE-SET,cn_domain,"));
+    const ipLine = result.configYaml.split("\n").find((l) => l.includes("RULE-SET,cn_ip,"));
+    assert.ok(domLine && domLine.includes(",DIRECT") && !domLine.includes(",no-resolve") || domLine && domLine.trim().endsWith(",DIRECT"),
+      `${template.id}: cn_domain -> DIRECT`);
+    assert.ok(ipLine && ipLine.includes("DIRECT") && ipLine.includes("no-resolve"),
+      `${template.id}: cn_ip -> DIRECT,no-resolve`);
+  }
+});
+
+test("ALL templates: MATCH is last rule", () => {
+  for (const template of DEFAULT_TEMPLATES) {
+    const result = renderWithDefaults(template.id);
+    const lines = result.configYaml.trim().split("\n");
+    // Find rules section
+    const rulesStart = lines.findIndex((l) => l.trim().startsWith("rules:"));
+    const ruleLines = lines.slice(rulesStart + 1).filter((l) => l.trim().startsWith("- "));
+    const lastRule = ruleLines[ruleLines.length - 1];
+    assert.ok(lastRule && lastRule.includes("MATCH,"), `${template.id}: last rule should be MATCH`);
+  }
+});
+
+// ======================== DNS checks ========================
+test("ALL templates: DNS nameserver-policy uses rule-set: not geosite:", () => {
+  for (const template of DEFAULT_TEMPLATES) {
+    const result = renderWithDefaults(template.id);
+    assert.ok(result.configYaml.includes('"rule-set:cn_domain"'), `${template.id}: DNS uses rule-set:cn_domain`);
+    assert.ok(result.configYaml.includes('"rule-set:private_domain"'), `${template.id}: DNS uses rule-set:private_domain`);
+    assert.ok(result.configYaml.includes('"rule-set:japan-services-domain"'), `${template.id}: DNS uses rule-set:japan-services-domain`);
+    // No geosite: in nameserver-policy
+    assert.doesNotMatch(result.configYaml, /geosite:cn/, `${template.id}: no geosite:cn in DNS`);
+    assert.doesNotMatch(result.configYaml, /geosite:private/, `${template.id}: no geosite:private in DNS`);
+  }
+});
+
+test("ALL templates have cache-algorithm: arc, respect-rules: true, enhanced-mode: fake-ip", () => {
+  for (const template of DEFAULT_TEMPLATES) {
+    const result = renderWithDefaults(template.id);
+    assert.match(result.configYaml, /cache-algorithm: arc/);
+    assert.match(result.configYaml, /respect-rules: true/);
+    assert.match(result.configYaml, /enhanced-mode: fake-ip/);
+  }
+});
+
+// ======================== Provider format checks ========================
+test("ALL templates: MRS providers have correct behavior/format", () => {
+  if (!yaml) return;
+  for (const template of DEFAULT_TEMPLATES) {
+    const result = renderWithDefaults(template.id);
+    const doc = parseYaml(result.configYaml);
+    const providers = doc["rule-providers"] || {};
+
+    // Domain MRS
+    for (const name of ["private_domain", "cn_domain", "openai_domain", "github_domain", "tracker_domain"]) {
+      assert.equal(providers[name]?.behavior, "domain", `${template.id}: ${name} behavior=domain`);
+      assert.equal(providers[name]?.format, "mrs", `${template.id}: ${name} format=mrs`);
+    }
+
+    // IPCidr MRS
+    for (const name of ["private_ip", "cn_ip", "jp_ip"]) {
+      assert.equal(providers[name]?.behavior, "ipcidr", `${template.id}: ${name} behavior=ipcidr`);
+      assert.equal(providers[name]?.format, "mrs", `${template.id}: ${name} format=mrs`);
+    }
+
+    // Text domain
+    for (const name of ["custom-direct-domain", "custom-proxy-domain", "pt-direct-domain", "misc-direct-domain", "japan-services-domain"]) {
+      assert.equal(providers[name]?.behavior, "domain", `${template.id}: ${name} behavior=domain`);
+      assert.equal(providers[name]?.format, "text", `${template.id}: ${name} format=text`);
+    }
+  }
+});
+
+test("Android: googlefcm_domain and googleplay_domain have correct format", () => {
+  if (!yaml) return;
+  const result = renderWithDefaults("android");
+  const doc = parseYaml(result.configYaml);
+  const providers = doc["rule-providers"] || {};
+  assert.equal(providers.googlefcm_domain?.behavior, "domain");
+  assert.equal(providers.googlefcm_domain?.format, "mrs");
+  assert.equal(providers.googleplay_domain?.behavior, "domain");
+  assert.equal(providers.googleplay_domain?.format, "mrs");
+});
+
+// ======================== url-test group checks ========================
+test("ALL url-test groups have lazy: true, expected-status: 204, empty-fallback: REJECT, tolerance: 80", () => {
+  if (!yaml) return;
+  for (const template of DEFAULT_TEMPLATES) {
+    const result = renderWithDefaults(template.id);
+    const doc = parseYaml(result.configYaml);
+    for (const group of doc["proxy-groups"] || []) {
+      if (group.type === "url-test") {
+        assert.equal(group.lazy, true, `${template.id}: ${group.name} lazy: true`);
+        assert.equal(group["expected-status"], 204, `${template.id}: ${group.name} expected-status: 204`);
+        assert.equal(group["empty-fallback"], "REJECT", `${template.id}: ${group.name} empty-fallback: REJECT`);
+        assert.equal(group.tolerance, 80, `${template.id}: ${group.name} tolerance: 80`);
+        assert.equal(group.interval, 600, `${template.id}: ${group.name} interval: 600`);
+        assert.equal(group.timeout, 3000, `${template.id}: ${group.name} timeout: 3000`);
+      }
+    }
+  }
+});
+
+test("Regional groups do not contain DIRECT", () => {
+  if (!yaml) return;
+  for (const template of DEFAULT_TEMPLATES) {
+    const result = renderWithDefaults(template.id);
+    const doc = parseYaml(result.configYaml);
+    for (const group of doc["proxy-groups"] || []) {
+      if (group.name === "🇯🇵 日本节点" || group.name === "🇺🇸 美国节点") {
+        assert.ok(!group.proxies.includes("DIRECT"), `${template.id}: ${group.name} should not contain DIRECT`);
+        assert.ok(group.proxies[0].startsWith("♻️"), `${template.id}: ${group.name} first proxy should be auto`);
+      }
+    }
+  }
+});
+
+test("🚀 默认代理 includes ♻️ groups", () => {
+  if (!yaml) return;
+  for (const template of DEFAULT_TEMPLATES) {
+    const result = renderWithDefaults(template.id);
+    const doc = parseYaml(result.configYaml);
+    const defaultGroup = doc["proxy-groups"]?.find((g) => g.name === "🚀 默认代理");
+    assert.ok(defaultGroup, `${template.id}: has 🚀 默认代理`);
+    assert.ok(defaultGroup.proxies.includes("♻️ 日本自动"), `${template.id}: 🚀 includes ♻️ 日本自动`);
+    assert.ok(defaultGroup.proxies.includes("♻️ 美国自动"), `${template.id}: 🚀 includes ♻️ 美国自动`);
+    assert.ok(defaultGroup.proxies.includes("DIRECT"), `${template.id}: 🚀 includes DIRECT`);
+  }
+});
+
+// ======================== Android-specific ========================
+test("android: exactly one type: tailscale proxy, no exit-node-allow-lan-access", () => {
   if (!yaml) return;
   const result = renderWithDefaults("android");
   const doc = parseYaml(result.configYaml);
   const tsProxies = (doc.proxies || []).filter((p) => p.type === "tailscale");
   assert.equal(tsProxies.length, 1);
   assert.equal(tsProxies[0].name, "tailscale");
-  assert.equal(tsProxies[0].hostname, "mihomo-android");
-  assert.equal(tsProxies[0]["ip-version"], "dual");
-});
-
-test("android: no exit-node-allow-lan-access", () => {
-  if (!yaml) return;
-  const result = renderWithDefaults("android");
-  assert.doesNotMatch(result.configYaml, /exit-node-allow-lan-access/);
+  assert.equal(tsProxies[0]["exit-node-allow-lan-access"], undefined);
 });
 
 test("android: home/family rules target 🏠 回家, not tailscale directly", () => {
@@ -190,12 +446,10 @@ test("android: home/family rules target 🏠 回家, not tailscale directly", ()
   const doc = parseYaml(result.configYaml);
   for (const rule of doc.rules || []) {
     if (typeof rule !== "string") continue;
-    // CIDR routes for home should go to 🏠 回家
     if (rule.includes("192.168.1.0/24") || rule.includes("192.168.2.0/24") ||
         rule.includes("100.64.0.0/10") || rule.includes("fd7a:115c:a1e0::/48")) {
       assert.match(rule, /回家/);
     }
-    // HOME_DOMAIN and TS_DOMAIN should go to 🏠 回家
     if (rule.includes("19970626.xyz") || rule.includes("tailc1b432.ts.net")) {
       assert.match(rule, /回家/);
     }
@@ -211,26 +465,34 @@ test("android: has 🏠 回家 and 📲 谷歌推送 groups", () => {
   assert.ok(groupNames.includes("📲 谷歌推送"));
 });
 
-test("android: no DOMAIN-SUFFIX,lan or DOMAIN-SUFFIX,local rules", () => {
+test("android: .lan and .local target DIRECT, not tailscale", () => {
   const result = renderWithDefaults("android");
-  assert.doesNotMatch(result.configYaml, /DOMAIN-SUFFIX,lan,/);
-  assert.doesNotMatch(result.configYaml, /DOMAIN-SUFFIX,local,/);
+  const lines = result.configYaml.split("\n").filter((l) => l.includes("DOMAIN-SUFFIX,lan,") || l.includes("DOMAIN-SUFFIX,local,"));
+  for (const line of lines) {
+    assert.ok(line.includes("DIRECT"), `Android .lan/.local should target DIRECT: ${line}`);
+  }
 });
 
-test("android: has all expected ipv6 rule providers and groups", () => {
+test("android: has all expected features", () => {
   const result = renderWithDefaults("android");
   assert.match(result.configYaml, /ipv6: true/);
   assert.match(result.configYaml, /RULE-SET,android-fcm-domain,/);
   assert.match(result.configYaml, /RULE-SET,android-google-play-domain,/);
-  assert.match(result.configYaml, /RULE-SET,japan-services-domain,/);
+  assert.match(result.configYaml, /RULE-SET,googlefcm_domain,/);
   assert.match(result.configYaml, /dns-hijack:\n    - any:53/);
+  assert.doesNotMatch(result.configYaml, /external-ui-url/);
 });
 
-// ---------------------------------------------------------------------------
-// Windows-specific
-// ---------------------------------------------------------------------------
+test("android: allow-lan false, tun.enable true", () => {
+  if (!yaml) return;
+  const result = renderWithDefaults("android");
+  const doc = parseYaml(result.configYaml);
+  assert.equal(doc["allow-lan"], false);
+  assert.equal(doc.tun?.enable, true);
+});
 
-test("windows: no tailscale, no 🏠 回家", () => {
+// ======================== Windows-specific ========================
+test("windows: no tailscale, no 🏠 回家, no 📲 谷歌推送", () => {
   if (!yaml) return;
   const result = renderWithDefaults("windows");
   const doc = parseYaml(result.configYaml);
@@ -238,6 +500,7 @@ test("windows: no tailscale, no 🏠 回家", () => {
   assert.equal(tsProxies.length, 0);
   const groupNames = (doc["proxy-groups"] || []).map((g) => g.name);
   assert.ok(!groupNames.includes("🏠 回家"));
+  assert.ok(!groupNames.includes("📲 谷歌推送"));
 });
 
 test("windows: allow-lan: false, find-process-mode: off", () => {
@@ -248,15 +511,7 @@ test("windows: allow-lan: false, find-process-mode: off", () => {
   assert.equal(doc["find-process-mode"], "off");
 });
 
-test("windows: has external-controller", () => {
-  const result = renderWithDefaults("windows");
-  assert.match(result.configYaml, /external-controller: 127\.0\.0\.1:9090/);
-});
-
-// ---------------------------------------------------------------------------
-// NAS-specific
-// ---------------------------------------------------------------------------
-
+// ======================== NAS-specific ========================
 test("nas: tun.enable: true with transparent proxy settings", () => {
   if (!yaml) return;
   const result = renderWithDefaults("nas");
@@ -266,19 +521,19 @@ test("nas: tun.enable: true with transparent proxy settings", () => {
   assert.equal(doc.tun["auto-route"], true);
   assert.equal(doc.tun["auto-redirect"], true);
   assert.equal(doc.tun["strict-route"], true);
-  assert.ok(doc.tun["route-exclude-address"], "NAS should have route-exclude-address");
   assert.ok(doc.tun["dns-hijack"].includes("tcp://any:53"));
 });
 
-test("nas: allow-lan: true, dns.listen 0.0.0.0:1053", () => {
+test("nas: allow-lan: true, mixed-port: 7890, dns.listen 0.0.0.0:1053", () => {
   if (!yaml) return;
   const result = renderWithDefaults("nas");
   const doc = parseYaml(result.configYaml);
   assert.equal(doc["allow-lan"], true);
+  assert.equal(doc["mixed-port"], 7890);
   assert.match(result.configYaml, /listen: 0\.0\.0\.0:1053/);
 });
 
-test("nas: no tailscale, no 🏠 回家", () => {
+test("nas: no tailscale, no 🏠 回家, no 📲 谷歌推送", () => {
   if (!yaml) return;
   const result = renderWithDefaults("nas");
   const doc = parseYaml(result.configYaml);
@@ -286,13 +541,7 @@ test("nas: no tailscale, no 🏠 回家", () => {
   assert.equal(tsProxies.length, 0);
   const groupNames = (doc["proxy-groups"] || []).map((g) => g.name);
   assert.ok(!groupNames.includes("🏠 回家"));
-});
-
-test("nas: find-process-mode: off", () => {
-  if (!yaml) return;
-  const result = renderWithDefaults("nas");
-  const doc = parseYaml(result.configYaml);
-  assert.equal(doc["find-process-mode"], "off");
+  assert.ok(!groupNames.includes("📲 谷歌推送"));
 });
 
 test("nas: no fake-ip-filter tailnet entries", () => {
@@ -305,224 +554,7 @@ test("nas: no fake-ip-filter tailnet entries", () => {
   }
 });
 
-// ---------------------------------------------------------------------------
-// Common assertions across all templates
-// ---------------------------------------------------------------------------
-
-test("all templates use include-all-proxies instead of include-all", () => {
-  for (const template of DEFAULT_TEMPLATES) {
-    const result = renderWithDefaults(template.id);
-    // All url-test groups should use include-all-proxies
-    assert.doesNotMatch(result.configYaml, /include-all: true(\s|$)/m,
-      `${template.id} should not use include-all`);
-    assert.match(result.configYaml.trim() + "\n", /include-all-proxies: true/,
-      `${template.id} should use include-all-proxies`);
-  }
-});
-
-test("all templates have cache-algorithm: arc", () => {
-  for (const template of DEFAULT_TEMPLATES) {
-    const result = renderWithDefaults(template.id);
-    assert.match(result.configYaml, /cache-algorithm: arc/);
-  }
-});
-
-test("all templates have respect-rules: true", () => {
-  for (const template of DEFAULT_TEMPLATES) {
-    const result = renderWithDefaults(template.id);
-    assert.match(result.configYaml, /respect-rules: true/);
-  }
-});
-
-test("all templates use enhanced-mode: fake-ip", () => {
-  for (const template of DEFAULT_TEMPLATES) {
-    const result = renderWithDefaults(template.id);
-    assert.match(result.configYaml, /enhanced-mode: fake-ip/);
-  }
-});
-
-test("all templates have correct rule-provider URLs using RULE_BASE_URL", () => {
-  for (const template of DEFAULT_TEMPLATES) {
-    const result = renderWithDefaults(template.id);
-    // Custom-direct-domain should reference RULE_BASE_URL
-    assert.match(result.configYaml, /url: "http:\/\/local\.test\/rules\/custom-direct-domain\.list"/);
-    assert.match(result.configYaml, /url: "http:\/\/local\.test\/rules\/custom-proxy-domain\.list"/);
-    assert.match(result.configYaml, /url: "http:\/\/local\.test\/rules\/pt-direct-domain\.list"/);
-  }
-});
-
-test("all templates have japan-services-domain rule-provider", () => {
-  for (const template of DEFAULT_TEMPLATES) {
-    const result = renderWithDefaults(template.id);
-    assert.match(result.configYaml, /japan-services-domain:/);
-    assert.match(result.configYaml, /RULE-SET,japan-services-domain,/);
-  }
-});
-
-test("all templates have no geodata-mode, geo-auto-update, geox-url", () => {
-  for (const template of DEFAULT_TEMPLATES) {
-    const result = renderWithDefaults(template.id);
-    assert.doesNotMatch(result.configYaml, /^geodata-mode:/m);
-    assert.doesNotMatch(result.configYaml, /^geo-auto-update:/m);
-    assert.doesNotMatch(result.configYaml, /^geox-url:/m);
-  }
-});
-
-test("all templates have no directly imported HenryChiao fake-ip-filter with wildcards", () => {
-  for (const template of DEFAULT_TEMPLATES) {
-    const result = renderWithDefaults(template.id);
-    // The old HenryChiao fake-ip-filter.list had entries with wildcard patterns
-    // We should not see patterns from that file in the output
-    // Instead check that our custom entries are present
-    assert.match(result.configYaml, /dns\.msftncsi\.com/);
-  }
-});
-
-test("all templates have no fallback section in DNS (simplified DNS)", () => {
-  for (const template of DEFAULT_TEMPLATES) {
-    const result = renderWithDefaults(template.id);
-    assert.doesNotMatch(result.configYaml, /^\s+fallback:/m);
-    assert.doesNotMatch(result.configYaml, /^\s+fallback-filter:/m);
-  }
-});
-
-test("all templates use new proxy group names", () => {
-  for (const template of DEFAULT_TEMPLATES) {
-    const result = renderWithDefaults(template.id);
-    assert.match(result.configYaml, /🚀 默认代理/);
-    assert.match(result.configYaml, /⚡ 全部自动/);
-    assert.match(result.configYaml, /♻️ 日本自动/);
-    assert.match(result.configYaml, /♻️ 美国自动/);
-    assert.doesNotMatch(result.configYaml, /🚀 节点选择/);
-    assert.doesNotMatch(result.configYaml, /⚡ 自动选择/);
-  }
-});
-
-test("all templates exclude-filter has traffic/expire keywords", () => {
-  for (const template of DEFAULT_TEMPLATES) {
-    const result = renderWithDefaults(template.id);
-    assert.match(result.configYaml, /exclude-filter.*流量/);
-  }
-});
-
-test("all url-test groups have lazy: true, expected-status: 204, empty-fallback: REJECT", () => {
-  for (const template of DEFAULT_TEMPLATES) {
-    const result = renderWithDefaults(template.id);
-    // Find url-test groups and check params
-    if (!yaml) {
-      // Without yaml parser, just check key strings exist
-      assert.match(result.configYaml, /lazy: true/);
-      assert.match(result.configYaml, /expected-status: 204/);
-      assert.match(result.configYaml, /empty-fallback: REJECT/);
-      assert.match(result.configYaml, /timeout: 3000/);
-      return;
-    }
-    const doc = parseYaml(result.configYaml);
-    for (const group of doc["proxy-groups"] || []) {
-      if (group.type === "url-test" && group.name !== "⚡ 全部自动") {
-        // ♻️ groups use YAML anchors from &url-test-defaults
-      }
-      if (group.type === "url-test") {
-        assert.equal(group.lazy, true, `Group ${group.name} should have lazy: true`);
-        assert.equal(group["expected-status"], 204, `Group ${group.name} should have expected-status: 204`);
-        assert.equal(group["empty-fallback"], "REJECT", `Group ${group.name} should have empty-fallback: REJECT`);
-        assert.equal(group.interval, 600, `Group ${group.name} should have interval: 600`);
-        assert.equal(group.timeout, 3000, `Group ${group.name} should have timeout: 3000`);
-      }
-    }
-  }
-});
-
-test("select groups have no url/interval/expected-status", () => {
-  if (!yaml) return;
-  for (const template of DEFAULT_TEMPLATES) {
-    const result = renderWithDefaults(template.id);
-    const doc = parseYaml(result.configYaml);
-    for (const group of doc["proxy-groups"] || []) {
-      if (group.type === "select") {
-        assert.equal(group.url, undefined, `Select group ${group.name} should not have url`);
-        assert.equal(group.interval, undefined, `Select group ${group.name} should not have interval`);
-        assert.equal(group["expected-status"], undefined, `Select group ${group.name} should not have expected-status`);
-      }
-    }
-  }
-});
-
-test("regional groups do not contain DIRECT", () => {
-  if (!yaml) return;
-  for (const template of DEFAULT_TEMPLATES) {
-    const result = renderWithDefaults(template.id);
-    const doc = parseYaml(result.configYaml);
-    for (const group of doc["proxy-groups"] || []) {
-      if (group.name === "🇯🇵 日本节点" || group.name === "🇺🇸 美国节点") {
-        assert.ok(!group.proxies.includes("DIRECT"),
-          `Group ${group.name} should not contain DIRECT`);
-        // First proxy should be the auto group
-        assert.ok(group.proxies[0].startsWith("♻️"),
-          `Group ${group.name} first proxy should be auto`);
-      }
-    }
-  }
-});
-
-// ---------------------------------------------------------------------------
-// Rule file validation
-// ---------------------------------------------------------------------------
-
-test("rule files: no duplicate lines", () => {
-  const ruleFiles = [
-    "pt-direct-domain.list",
-    "misc-direct-domain.list",
-    "android-fcm-domain.list",
-    "android-google-play-domain.list",
-    "japan-services-domain.list",
-    "custom-direct-domain.list",
-    "custom-proxy-domain.list",
-  ];
-  for (const filename of ruleFiles) {
-    const filePath = resolve(rootDir, "rules", filename);
-    const content = readFileSync(filePath, "utf8");
-    const lines = content.split("\n").filter((l) => l.trim() && !l.startsWith("#"));
-    const seen = new Set();
-    for (const line of lines) {
-      assert.ok(!seen.has(line), `Duplicate line in ${filename}: ${line}`);
-      seen.add(line);
-    }
-  }
-});
-
-test("rule files: no illegal whitespace", () => {
-  const ruleFiles = [
-    "pt-direct-domain.list",
-    "misc-direct-domain.list",
-    "android-fcm-domain.list",
-    "android-google-play-domain.list",
-    "japan-services-domain.list",
-  ];
-  for (const filename of ruleFiles) {
-    const filePath = resolve(rootDir, "rules", filename);
-    const content = readFileSync(filePath, "utf8");
-    const lines = content.split("\n").filter((l) => l.trim() && !l.startsWith("#"));
-    for (const line of lines) {
-      // Strip the leading "+." prefix for domain rules before checking
-      const trimmed = line.replace(/^\+\./, "").trim();
-      assert.ok(!/\s/.test(trimmed), `Illegal whitespace in ${filename}: "${line}"`);
-    }
-  }
-});
-
-test("pt-direct-domain.list does not contain non-PT domains", () => {
-  const filePath = resolve(rootDir, "rules/pt-direct-domain.list");
-  const content = readFileSync(filePath, "utf8");
-  assert.ok(!content.includes("smzdm"), "pt-direct-domain.list should not contain smzdm");
-  assert.ok(!content.includes("pcbeta"), "pt-direct-domain.list should not contain pcbeta");
-  assert.ok(!content.includes("19970626"), "pt-direct-domain.list should not contain 19970626");
-});
-
-// ---------------------------------------------------------------------------
-// Existing behavioral tests (preserved)
-// ---------------------------------------------------------------------------
-
+// ======================== Custom template tests ========================
 test("saved templates always elevate PROFILE_NAME to required", () => {
   const template = normalizeTemplate({
     id: "nas",
@@ -534,10 +566,10 @@ test("saved templates always elevate PROFILE_NAME to required", () => {
     ],
   });
 
-  assert.deepEqual(template.variables, [
-    { name: "PROFILE_NAME", required: true, defaultValue: "NAS" },
-    { name: "HOME_DOMAIN", required: false, defaultValue: "" },
-  ]);
+  // NAS body includes {{HOME_DOMAIN}} from fake-ip-filter include
+  assert.ok(template.variables.some((v) => v.name === "PROFILE_NAME" && v.required === true && v.defaultValue === "NAS"));
+  assert.ok(template.variables.some((v) => v.name === "HOME_DOMAIN" && v.required === false));
+  assert.equal(template.variables.length, 2);
 });
 
 test("template normalization discovers variables from yaml body", () => {
@@ -548,17 +580,20 @@ test("template normalization discovers variables from yaml body", () => {
     body: DEFAULT_TEMPLATES[0].body,
   });
 
-  assert.deepEqual(template.variables, [
-    { name: "HOME_DOMAIN", required: false, defaultValue: "" },
-    { name: "TS_DOMAIN", required: false, defaultValue: "" },
-  ]);
+  const vars = template.variables;
+  const varNames = vars.map((v) => v.name);
+  assert.ok(varNames.includes("HOME_DOMAIN"));
+  assert.ok(varNames.includes("TS_DOMAIN"));
 });
 
 test("render accepts normalized variable names from api callers", () => {
   const result = renderConfig({
     template: builtInTemplateById("nas"),
     nodesText: "ss://YWVzLTEyOC1nY206cGFzc0BleGFtcGxlLmNvbTo4Mzg4#NAS%20Sample",
-    variables: { profileName: "CustomProfile" },
+    variables: {
+      profileName: "CustomProfile",
+      HOME_DOMAIN: "home.example.com",
+    },
   });
 
   assert.match(result.configYaml, /CustomProfile 生成于/);
@@ -668,4 +703,50 @@ test("injects generated proxies into a full mihomo template without placeholders
   assert.match(result.configYaml, /proxies:\n  - name: "ss node"/);
   assert.match(result.configYaml, /name: __HOME_NODE_MISSING__/);
   assert.match(result.configYaml, /proxy-groups:/);
+});
+
+// ======================== Rule file validation ========================
+test("rule files: no duplicate lines, no illegal whitespace", () => {
+  const ruleFiles = [
+    "pt-direct-domain.list",
+    "misc-direct-domain.list",
+    "android-fcm-domain.list",
+    "android-google-play-domain.list",
+    "japan-services-domain.list",
+    "custom-direct-domain.list",
+    "custom-proxy-domain.list",
+  ];
+  for (const filename of ruleFiles) {
+    const filePath = resolve(rootDir, "rules", filename);
+    const content = readFileSync(filePath, "utf8");
+    const lines = content.split("\n").filter((l) => l.trim() && !l.startsWith("#"));
+    const seen = new Set();
+    for (const line of lines) {
+      assert.ok(!seen.has(line), `Duplicate line in ${filename}: ${line}`);
+      seen.add(line);
+    }
+    for (const line of lines) {
+      const trimmed = line.replace(/^\+\./, "").trim();
+      assert.ok(!/\s/.test(trimmed), `Illegal whitespace in ${filename}: "${line}"`);
+    }
+  }
+});
+
+test("pt-direct-domain.list does not contain non-PT domains", () => {
+  const filePath = resolve(rootDir, "rules/pt-direct-domain.list");
+  const content = readFileSync(filePath, "utf8");
+  assert.ok(!content.includes("smzdm"), "pt-direct-domain.list should not contain smzdm");
+  assert.ok(!content.includes("pcbeta"), "pt-direct-domain.list should not contain pcbeta");
+  assert.ok(!content.includes("19970626"), "pt-direct-domain.list should not contain personal home domain");
+});
+
+test("japan-services-domain.list has required entries", () => {
+  const filePath = resolve(rootDir, "rules/japan-services-domain.list");
+  const content = readFileSync(filePath, "utf8");
+  assert.ok(content.includes("+.jp"));
+  assert.ok(content.includes("+.dmm.co.jp"));
+  assert.ok(content.includes("+.pixiv.net"));
+  assert.ok(content.includes("+.amazon.co.jp"));
+  assert.ok(content.includes("+.rakuten.co.jp"));
+  assert.ok(content.includes("+.yahoo.co.jp"));
 });

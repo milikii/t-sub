@@ -13,6 +13,9 @@ const ALLOWED_FILES = [
   "android-fcm-domain.list",
   "android-google-play-domain.list",
   "japan-services-domain.list",
+  "fake-ip-filter-domain.list",
+  "fake-ip-filter-android-domain.list",
+  "fake-ip-filter-tailnet-domain.list",
 ];
 
 const outputPath = resolve(rootDir, "src/core/default-rule-bodies.js");

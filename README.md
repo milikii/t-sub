@@ -143,30 +143,38 @@ templates/windows.yaml
 
 `src/core/default-template-bodies.js` 是生成产物，Cloudflare Worker 实际从这里打包默认模板。改完 `templates/*.yaml` 后运行 `npm run templates:generate`，提交 YAML 和生成后的 JS。
 
-Android 内置模板已经是完整 mihomo alpha 配置，不需要手写 `{{PROXIES_YAML}}`。系统会自动把你粘贴的节点插入顶层 `proxies:` 段，并保留模板里的兜底节点。
+Android 内置模板已经是完整 mihomo 配置，不需要手写 `{{PROXIES_YAML}}`。系统会自动把你粘贴的节点插入顶层 `proxies:` 段，并保留模板里的兜底节点。
 
 三端内置模板现在按用途分开：
 
-- Android：开启 TUN、fake-ip DNS、FCM 规则、Google Play 规则、US/JP 分组，并内置 `type: tailscale` 出站和 `🏠 回家` 策略组。家庭/Tailnet 域名和 CIDR 走 🏠 回家。
-- NAS：**透明旁路由**。`tun.enable: true`，`auto-route` + `auto-redirect`，DNS 监听 `0.0.0.0:1053`。部署方式为原生 systemd，不推荐 Docker bridge。详见 `docs/debian-nas-router.md`。
-- Windows：本机桌面代理。`allow-lan: false`，`find-process-mode: off`，不包含 Tailscale。
+- **Android**：开启 TUN、fake-ip DNS、FCM/Google Play 规则、US/JP 分组，并内置 `type: tailscale` 出站和 `🏠 回家` 策略组。家庭/Tailnet 域名和 CIDR 走 🏠 回家。MRS-first，无 GeoX。
+- **NAS**：**透明旁路由**。`tun.enable: true`，`auto-route` + `auto-redirect`，DNS 监听 `0.0.0.0:1053`，`dns-hijack: [any:53, tcp://any:53]`。部署方式为原生 systemd，不推荐 Docker bridge。详见 `docs/debian-nas-router.md`。MRS-first，无 GeoX。
+- **Windows**：本机桌面代理。`allow-lan: false`，`find-process-mode: off`，不包含 Tailscale。MRS-first，无 GeoX。
 
 节点命名建议在订阅转换阶段给美国节点加 `us` 前缀、日本节点加 `jp` 前缀。模板也兼容常见地区词，例如 `美国`、`日本`、`USA`、`Japan`、`Tokyo`、`Los Angeles`。
 
-NAS 和 Windows 会把 OpenAI/GitHub 走美国节点，把日本域名和常见日区服务走日本节点；Android 的 OpenAI 和 Play 商店下载规则跟随 `🚀 节点选择`。YouTube、Netflix 这类媒体服务不强行固定地区，默认跟随 `🚀 节点选择`，避免干扰你手动选择日区或美区。
+OpenAI、GitHub 固定美国节点。日本域名和常见日区服务走日本节点。国内域名/国内 IP 直连。YouTube、Netflix 这类媒体服务不强行固定地区，默认跟随 `🚀 默认代理`。
 
-DNS 使用 fake-ip 与 `respect-rules`。直连域名使用阿里/腾讯 DoH，代理域名使用对应规则分流后的 DoH，避免直连域名被国外 DNS 解析、代理域名被国内 DNS 污染。NAS 和 Windows 默认关闭 Mihomo IPv6（顶层 `ipv6: false`，`dns.ipv6: false`）；Android 模板按新版基线开启 IPv6（顶层和 DNS 均为 `true`）。
+DNS 使用 fake-ip 与 `respect-rules`。直连域名使用阿里/腾讯 DoH，代理域名使用对应规则分流后的 DoH，避免直连域名被国外 DNS 解析、代理域名被国内 DNS 污染。`nameserver-policy` 使用 `rule-set:` 引用（如 `rule-set:cn_domain`、`rule-set:private_domain`、`rule-set:japan-services-domain`），不再使用 `geosite:` 语法。NAS 和 Windows 默认关闭 Mihomo IPv6（顶层 `ipv6: false`，`dns.ipv6: false`）；Android 模板开启 IPv6（顶层和 DNS 均为 `true`）。
 
-Android 模板的 WebUI/规则依赖：
+本项目采用 **MRS-first** 路线：
 
-- WebUI：`MetaCubeX/metacubexd`，通过 `external-ui-url` 从 GitHub 下载。
-- Geo 数据：`MetaCubeX/meta-rules-dat` 的 `geoip.dat`、`geosite.dat`、`country.mmdb`、`GeoLite2-ASN.mmdb`。
-- 规则集：本仓库 `rules/` 目录里的规则文件通过 `GET /rules/<filename>` 提供服务。包括 custom-direct-domain、custom-proxy-domain、pt-direct-domain、misc-direct-domain、japan-services-domain、android-fcm-domain、android-google-play-domain。
-- MRS 规则：private、cn、geoip-cn、openai、github 从 `MetaCubeX/meta-rules-dat` 的 GitHub raw URL 拉取。
+- **纯 MRS**：所有公共规则使用 `MetaCubeX/meta-rules-dat` 的 MRS 文件。
+- **无 DAT/MMDB**：不使用 `geoip.dat`、`geosite.dat`、`country.mmdb`。
+- **无 GeoX**：不使用 `GEOSITE`、`GEOIP`、`geodata-mode`、`geox-url`。
+- **无 Loyalsoldier**：不使用 `Loyalsoldier/v2ray-rules-dat`。
+- 公共 MRS 规则由 mihomo 客户端根据 `rule-provider` 的 `interval: 86400` 自动更新，不下载到本仓库。
+- 私人小规则由本仓库 `rules/` 目录提供，通过 `GET /rules/<filename>` 由 Worker 托管。包括 custom-direct-domain、custom-proxy-domain、pt-direct-domain、misc-direct-domain、japan-services-domain、android-fcm-domain、android-google-play-domain。
+- MRS 远程规则：`private_domain`、`private_ip`、`cn_domain`、`cn_ip`、`openai_domain`、`github_domain`、`tracker_domain`、`jp_ip`，以及 Android 独有的 `googlefcm_domain`、`googleplay_domain`。
 
-本项目按“模板”和“规则”分开维护：`templates/` 管三端完整配置模板，`rules/` 只放 `rule-providers` 会拉取的规则文件。规则公开路径继续保持 `/rules/*.list`，避免已经保存到客户端里的规则 URL 失效。
+Android 模板：
 
-`rule-providers` 默认走默认拨号器更新规则，不绑定具体代理组，避免启动时代理组未就绪导致规则集拉取失败。WebUI 的 `external-ui-url` 在 mihomo 配置里没有独立 `proxy` 字段；如果本地 WebUI 下载失败，可以直接使用在线版 `https://metacubex.github.io/metacubexd/`，后端地址填 `http://127.0.0.1:9090`。
+- 无内置 WebUI，不包含 `external-ui-url`。
+- 无 GeoX 配置。
+
+本项目按“模板”和“规则”分开维护：`templates/` 管三端完整配置模板，`rules/` 只放 `rule-providers` 会拉取的规则文件。规则公开路径继续保持 `/rules/*.list`，避免已经保存到客户端里的规则 URL 失效。公共远程 MRS 规则（`private_domain`、`cn_domain`、`openai_domain`、`github_domain`、`tracker_domain`、`jp_ip` 等）直接从 `MetaCubeX/meta-rules-dat` 的 GitHub raw URL 拉取，**不经过本 Worker**。Worker `/rules` 只托管私人小规则（text 格式）。
+
+`rule-providers` 默认通过 `🚀 默认代理` 更新规则。所有 MRS 远程规则支持 `proxy` 字段指定通过哪个代理组下载规则文件。
 
 如果有网站需要手动指定直连或代理，写入：
 

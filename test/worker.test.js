@@ -69,8 +69,19 @@ test("worker login, render, and one-time subscription flow", async () => {
   );
   assert.equal(resetAndroid.status, 200);
   const resetBody = await resetAndroid.json();
-  assert.match(resetBody.template.body, /external-ui-url:/);
+  // Android template should have MRS-first providers and no GeoX
   assert.match(resetBody.template.body, /MATCH,🚀 默认代理/);
+  assert.match(resetBody.template.body, /RULE-SET,private_domain,DIRECT/);
+  assert.match(resetBody.template.body, /RULE-SET,cn_domain,DIRECT/);
+  assert.match(resetBody.template.body, /RULE-SET,openai_domain,🇺🇸 美国节点/);
+  assert.match(resetBody.template.body, /RULE-SET,github_domain,🇺🇸 美国节点/);
+  assert.match(resetBody.template.body, /RULE-SET,japan-services-domain,🇯🇵 日本节点/);
+  assert.match(resetBody.template.body, /rule-set:cn_domain/);
+  assert.match(resetBody.template.body, /rule-set:private_domain/);
+  // No GeoX
+  assert.doesNotMatch(resetBody.template.body, /GEOSITE,|GEOIP,|geosite:|geoip:|geodata-mode|geox-url|country\.mmdb|geoip\.dat|geosite\.dat/);
+  // No external-ui-url
+  assert.doesNotMatch(resetBody.template.body, /external-ui-url/);
   assert.deepEqual(resetBody.template.variables, [
     { name: "HOME_DOMAIN", required: false, defaultValue: "19970626.xyz" },
     { name: "TS_DOMAIN", required: false, defaultValue: "tailc1b432.ts.net" },
@@ -274,8 +285,12 @@ test("worker login, render, and one-time subscription flow", async () => {
   assert.match(yaml, /state-dir: \.\/tailscale/);
   assert.match(yaml, /RULE-SET,custom-direct-domain,DIRECT/);
   assert.match(yaml, /RULE-SET,custom-proxy-domain,🚀 默认代理/);
-  assert.match(yaml, /RULE-SET,android-google-play-domain,🚀 默认代理/);
+  assert.match(yaml, /RULE-SET,japan-services-domain,🇯🇵 日本节点/);
+  assert.match(yaml, /RULE-SET,openai_domain,🇺🇸 美国节点/);
+  assert.match(yaml, /RULE-SET,github_domain,🇺🇸 美国节点/);
   assert.match(yaml, /MATCH,🚀 默认代理/);
+  // No GeoX
+  assert.doesNotMatch(yaml, /GEOSITE,|GEOIP,|geosite:|geoip:|geodata-mode|geox-url|country\.mmdb/);
 
   const secondGet = await worker.fetch(new Request(body.url), env);
   assert.equal(secondGet.status, 200);

@@ -1,158 +1,100 @@
-# Mihomo Template Refactor Implementation
+# mihomo 模板重构：MRS-first 收敛
 
-## Original Problems
+## 最终架构
 
-1. **Android 🏠 回家 rules bypass the group** — HOME_DOMAIN/TS_DOMAIN/CIDR rules wrote `tailscale` directly instead of `🏠 回家`
-2. **Android DOMAIN-SUFFIX,lan and DOMAIN-SUFFIX,local too broad** — deleted, only forward explicit home domains and Tailnet domains
-3. **Android exit-node-allow-lan-access: true** — invalid field without exit-node, deleted
-4. **NAS tun.enable: false** — not a side router, just allow-lan proxy. Changed to true transparent Linux side router
-5. **Windows find-process-mode: strict** — with no process rules, changed to off
-6. **pt-direct.list** — contained non-PT domains (smzdm.com, pcbeta.com, 19970626.xyz) and duplicate hdsky.me
-7. **fcm-ipcidr.list** — all /32, no reliable update source, moved to legacy
-8. **GEOSITE/GEOIP with geodata-mode** — migrated to MRS rule-providers from meta-rules-dat
-9. **DNS fallback/fallback-filter** — overly complex, simplified
-10. **Proxy groups with redundant url/interval on select groups** — cleaned up
-11. **Configs referenced hardcoded GitHub URLs** — switched to RULE_BASE_URL for custom rules
+本项目已收敛为「极简 MRS-first mihomo 模板生成器」。
 
-## Changes
+### MRS-first
 
-### Rule Directory Reorganization
+- **纯 MRS-first**：所有公共规则使用 `MetaCubeX/meta-rules-dat` 的 MRS 文件
+- **无需 DAT/MMDB**：不使用 `geoip.dat`、`geosite.dat`、`country.mmdb`
+- **无 GeoX**：无 `GEOSITE`、`GEOIP`、`geodata-mode`、`geox-url`
+- **无 Loyalsoldier**：不使用 `Loyalsoldier/v2ray-rules-dat`
 
-| Old | New | Type |
-|-----|-----|------|
-| `rules/pt-direct.list` | `rules/pt-direct-domain.list` | Renamed, deduped, cleaned |
-| — | `rules/misc-direct-domain.list` | New file for non-PT misc domains |
-| `rules/fcm-domain.list` | `rules/android-fcm-domain.list` | Renamed |
-| `rules/google-play-domain.list` | `rules/android-google-play-domain.list` | Renamed |
-| — | `rules/japan-services-domain.list` | New file for Japan service domains |
-| `rules/fcm-ipcidr.list` | `rules/legacy/fcm-ipcidr.list` | Moved to legacy |
+### 公共规则来源
 
-### Template Differences
+所有公共规则通过 `rule-provider` 的 `interval: 86400` 从 `MetaCubeX/meta-rules-dat` 的 GitHub raw MRS 文件自动更新，由 mihomo 客户端侧完成，无需本仓库下载。
 
-| Feature | Android | Windows | NAS |
-|---------|---------|---------|-----|
-| Tailscale proxy | ✅ | ❌ | ❌ |
-| 🏠 回家 group | ✅ | ❌ | ❌ |
-| 📲 谷歌推送 group | ✅ | ❌ | ❌ |
-| TUN | enable: true | — | enable: true, auto-redirect |
-| allow-lan | false | false | true |
-| find-process-mode | — | off | off |
-| DNS listen | 127.0.0.1:1053 | 127.0.0.1:1053 | 0.0.0.0:1053 |
-| dns-hijack | any:53 | — | any:53, tcp://any:53 |
-| fake-ip-filter | domain + tailnet + android | domain + tailnet | domain |
+| provider | 源 URL | 类型 |
+|----------|--------|------|
+| `private_domain` | `geosite/private.mrs` | behavior: domain, format: mrs |
+| `private_ip` | `geoip/private.mrs` | behavior: ipcidr, format: mrs |
+| `cn_domain` | `geosite/cn.mrs` | behavior: domain, format: mrs |
+| `cn_ip` | `geoip/cn.mrs` | behavior: ipcidr, format: mrs |
+| `openai_domain` | `geosite/openai.mrs` | behavior: domain, format: mrs |
+| `github_domain` | `geosite/github.mrs` | behavior: domain, format: mrs |
+| `tracker_domain` | `geosite/tracker.mrs` | behavior: domain, format: mrs |
+| `jp_ip` | `geoip/jp.mrs` | behavior: ipcidr, format: mrs |
 
-### Proxy Groups (Common)
+### 私人规则
 
-- `🚀 默认代理` (select) — default outbound
-- `⚡ 全部自动` (url-test) — auto pick best
-- `🇯🇵 日本节点` (select, first: ♻️ 日本自动)
-- `♻️ 日本自动` (url-test)
-- `🇺🇸 美国节点` (select, first: ♻️ 美国自动)
-- `♻️ 美国自动` (url-test)
+由 Worker `/rules` 路由托管，通过 `{{RULE_BASE_URL}}` 注入。
 
-Android adds: `🏠 回家` and `📲 谷歌推送`
+### 三端模板
 
-All url-test groups: lazy, interval: 600, timeout: 3000, max-failed-times: 3, expected-status: 204, empty-fallback: REJECT
+| 模板 | Tailscale | TUN | 特殊策略组 |
+|------|-----------|-----|-----------|
+| Windows | ❌ | 不强制 | 仅 6 个通用组 |
+| Android | ✅ 回家 | ✅ enable | + 🏠 回家 + 📲 谷歌推送 |
+| NAS | ❌ | ✅ 旁路由 | 仅 6 个通用组 |
 
-All groups: `include-all-proxies: true`, `exclude-filter` for traffic/expire keywords
+### 策略组
 
-### Rule Priority
+三端通用（6 组）：
 
-Android:
-1. HOME_DOMAIN + TS_DOMAIN + home CIDR → 🏠 回家
-2. localhost + private → DIRECT
-3. custom-direct-domain → DIRECT
-4. custom-proxy-domain → 🚀 默认代理
-5. pt-direct-domain → DIRECT
-6. misc-direct-domain → DIRECT
-7. android-fcm-domain → 📲 谷歌推送
-8. android-google-play-domain → 🚀 默认代理
-9. openai → 🚀 默认代理
-10. github → 🚀 默认代理
-11. japan-services-domain → 🇯🇵 日本节点
-12. cn → DIRECT
-13. geoip-cn → DIRECT,no-resolve
-14. MATCH → 🚀 默认代理
+1. `🚀 默认代理` — select，包含 ⚡/🇯🇵/🇺🇸/♻️🇯🇵/♻️🇺🇸/DIRECT
+2. `⚡ 全部自动` — url-test
+3. `🇯🇵 日本节点` — select，filter 日本，不含 DIRECT
+4. `♻️ 日本自动` — url-test，filter 日本
+5. `🇺🇸 美国节点` — select，filter 美国，不含 DIRECT
+6. `♻️ 美国自动` — url-test，filter 美国
 
-Windows/NAS:
-1. localhost + lan/local + HOME_DOMAIN + private → DIRECT
-2. custom-direct-domain → DIRECT
-3. custom-proxy-domain → 🚀 默认代理
-4. pt-direct-domain → DIRECT
-5. misc-direct-domain → DIRECT
-6. openai → 🇺🇸 美国节点
-7. github → 🇺🇸 美国节点
-8. japan-services-domain → 🇯🇵 日本节点
-9. cn → DIRECT
-10. geoip-cn → DIRECT,no-resolve
-11. MATCH → 🚀 默认代理
+Android 额外：
 
-### DNS Design
+7. `🏠 回家` — select，含 tailscale/DIRECT
+8. `📲 谷歌推送` — select，含 🚀/🇺🇸/DIRECT
 
-- `cache-algorithm: arc` — ARC cache for efficiency
-- `enhanced-mode: fake-ip` — fake IP for domain-based routing
-- `fake-ip-range: 198.18.0.1/16`
-- `default-nameserver: [223.5.5.5, 119.29.29.29]`
-- `proxy-server-nameserver` → Chinese DoH (alidns, dns.pub)
-- `direct-nameserver` → Chinese DoH
-- `nameserver` → 1.1.1.1, 8.8.8.8 (overseas)
-- `nameserver-policy`:
-  - `geosite:cn` → Chinese DoH
-  - `geosite:private` → Chinese DoH
-  - Other → nameserver (overseas)
+### DNS
 
-### Worker /rules Route
+- `nameserver-policy` 使用 `rule-set:` 引用，而非 `geosite:`
+- 国内域名/私有域名使用阿里/腾讯 DoH
+- 日本域名使用 1.1.1.1/8.8.8.8
+- `enhanced-mode: fake-ip`
+- `cache-algorithm: arc`
+- `respect-rules: true`
 
-- `GET /rules/<filename>` — whitelisted rule files served from bundled JS
-- Whitelist enforced: no path traversal, no slashes, strict filename match
-- Content-Type: text/plain; charset=utf-8
-- Cache-Control: public, max-age=300
-- ETag based on SHA-256 content hash
-- RULE_BASE_URL injected automatically at render time
-- Not shown in web UI (reserved variable)
+### 规则顺序
 
-### MRS Rule Providers
+```
+1. 本地安全直连（localhost/lan/local + private 直连）
+2. 最高人工直连（custom-direct-domain）
+3. 日本强制（japan-services-domain, jp_ip）
+4. 人工指定代理（custom-proxy-domain）
+5. PT/Tracker/杂项直连
+6. AI/开发服务固定美国（openai_domain, github_domain）
+7. 国内直连（cn_domain, cn_ip）
+8. MATCH → 🚀 默认代理
+```
 
-- `RULE-SET,private,DIRECT` → geosite/private.mrs
-- `RULE-SET,cn,DIRECT` → geosite/cn.mrs
-- `RULE-SET,geoip-cn,DIRECT,no-resolve` → geoip/cn.mrs
-- `RULE-SET,openai,...` → geosite/openai.mrs
-- `RULE-SET,github,...` → geosite/github.mrs
+### 删除的旧配置
 
-Sources: `https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/`
+- `geosite:cn` DNS 策略
+- `geosite:private` DNS 策略
+- 旧 provider 名：`private`、`cn`、`geoip-cn`、`openai`、`github`
+- `GEOSITE,*`、`GEOIP,*` 规则
+- `geodata-mode`、`geo-auto-update`、`geox-url`
+- Android `external-ui-url`（无内置 WebUI 需求）
+- Android `exit-node-allow-lan-access`
+- `DOMAIN-SUFFIX,{{HOME_DOMAIN}},DIRECT`（Windows/NAS）
+- `dns.fallback`、`dns.fallback-filter`
 
-### Deleted Config
+### 迁移
 
-- `geodata-mode`, `geo-auto-update`, `geo-update-interval`, `geox-url`
-- `dns.fallback`, `dns.fallback-filter`
-- `DOMAIN-SUFFIX,lan,tailscale` (Android)
-- `DOMAIN-SUFFIX,local,tailscale` (Android)
-- `exit-node-allow-lan-access` (Android tailscale)
-- `find-process-mode: strict` (Windows, replaced with `off`)
-- `lan-allowed-ips` (NAS, unnecessary for TUN mode)
-- `external-controller` (NAS)
-- Hardcoded Japan domain rules (replaced with RULE-SET)
-- old rule-providers for ghp-mirrored GitHub URLs
+1. 部署 Worker 代码
+2. 打开网页，对每个内置模板点「恢复内置模板」
+3. 新生成的配置将使用新版
 
-## NAS Deployment
-
-NAS template changed from Docker proxy to transparent side router:
-- `tun.enable: true`, `stack: mixed`, `auto-route`, `auto-redirect`, `strict-route`
-- `dns-hijack: [any:53, tcp://any:53]`
-- `dns.listen: 0.0.0.0:1053`
-- `route-exclude-address` for RFC1918
-- Deployed with native systemd (not Docker bridge)
-- See `docs/debian-nas-router.md` for detailed instructions
-
-## Migration Steps
-
-1. Deploy updated Worker code
-2. Open web UI
-3. For each template (Android, Windows, NAS), click "恢复内置模板"
-4. New renders will use updated templates
-5. Existing `/s/` links continue to work (they use previously rendered snapshots)
-
-## Rollback
+### 回滚
 
 ```bash
 git revert HEAD --no-edit
@@ -161,4 +103,4 @@ npm run rules:generate
 npm test
 ```
 
-Re-deploy Worker code.
+重新部署 Worker。
