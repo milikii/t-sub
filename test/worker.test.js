@@ -372,16 +372,25 @@ test("/rules/ returns 404 for unknown files", async () => {
   assert.equal(response.status, 404);
 });
 
-test("/rules/ rejects path traversal", async () => {
+test("/rules/ HEAD returns 200 with correct headers", async () => {
   const env = await makeEnv("test-password");
+  const filename = "custom-direct-domain.list";
   const response = await worker.fetch(
-    new Request("http://local.test/rules/../worker.js"),
+    new Request(`http://local.test/rules/${filename}`, { method: "HEAD" }),
     env,
   );
-  assert.equal(response.status, 404);
+  assert.equal(response.status, 200);
+  assert.match(
+    response.headers.get("content-type") || "",
+    /text\/plain/,
+  );
+  assert.ok(response.headers.get("cache-control"), "HEAD should have cache-control");
+  assert.ok(response.headers.get("etag"), "HEAD should have ETag");
+  const body = await response.text();
+  assert.equal(body, "", "HEAD body must be empty");
 });
 
-test("/rules/ rejects only GET method", async () => {
+test("/rules/ POST returns 405", async () => {
   const env = await makeEnv("test-password");
   const filename = listRuleFiles()[0];
   const response = await worker.fetch(
@@ -389,6 +398,38 @@ test("/rules/ rejects only GET method", async () => {
     env,
   );
   assert.equal(response.status, 405);
+});
+
+test("/rules/ rejects path traversal", async () => {
+  const env = await makeEnv("test-password");
+
+  // ../ traversal
+  let response = await worker.fetch(
+    new Request("http://local.test/rules/../worker.js"),
+    env,
+  );
+  assert.equal(response.status, 404);
+
+  // URL-encoded ../ traversal
+  response = await worker.fetch(
+    new Request("http://local.test/rules/%2e%2e/package.json"),
+    env,
+  );
+  assert.equal(response.status, 404);
+
+  // subdir in path
+  response = await worker.fetch(
+    new Request("http://local.test/rules/subdir/file.list"),
+    env,
+  );
+  assert.equal(response.status, 404);
+
+  // unknown file
+  response = await worker.fetch(
+    new Request("http://local.test/rules/unknown.list"),
+    env,
+  );
+  assert.equal(response.status, 404);
 });
 
 async function makeEnv(password) {

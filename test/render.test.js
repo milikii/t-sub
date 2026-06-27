@@ -554,6 +554,94 @@ test("nas: no fake-ip-filter tailnet entries", () => {
   }
 });
 
+// ======================== Default rendering with DEFAULT_TEMPLATES variables ========================
+
+test("Windows: default variables render without HOME_DOMAIN / TS_DOMAIN", () => {
+  const result = renderWithDefaults("windows");
+  // Only pass PROFILE_NAME default (which templates.js provides) — no HOME_DOMAIN or TS_DOMAIN
+  assert.doesNotMatch(result.configYaml, /{{HOME_DOMAIN}}/);
+  assert.doesNotMatch(result.configYaml, /{{TS_DOMAIN}}/);
+  assert.doesNotMatch(result.configYaml, /tailscale/);
+  assert.doesNotMatch(result.configYaml, /🏠 回家/);
+  assert.doesNotMatch(result.configYaml, /📲 谷歌推送/);
+  for (const forbidden of FORBIDDEN_STRINGS) {
+    assert.ok(!result.configYaml.includes(forbidden), `Windows must not contain "${forbidden}"`);
+  }
+});
+
+test("NAS: default variables render without {{HOME_DOMAIN}} / {{TS_DOMAIN}} placeholders, has tun settings", () => {
+  if (!yaml) return;
+  const result = renderWithDefaults("nas", { PROFILE_NAME: "NAS" });
+  assert.doesNotMatch(result.configYaml, /{{HOME_DOMAIN}}/);
+  assert.doesNotMatch(result.configYaml, /{{TS_DOMAIN}}/);
+  assert.doesNotMatch(result.configYaml, /tailscale/);
+  const doc = parseYaml(result.configYaml);
+  assert.equal(doc.tun?.enable, true);
+  assert.equal(doc.tun?.["auto-route"], true);
+  assert.equal(doc.tun?.["auto-redirect"], true);
+  assert.equal(doc.tun?.["strict-route"], true);
+});
+
+test("Android: default variables render without {{HOME_DOMAIN}} / {{TS_DOMAIN}} placeholders, has tailscale", () => {
+  if (!yaml) return;
+  const result = renderWithDefaults("android");
+  assert.doesNotMatch(result.configYaml, /{{HOME_DOMAIN}}/);
+  assert.doesNotMatch(result.configYaml, /{{TS_DOMAIN}}/);
+  assert.match(result.configYaml, /type: tailscale/);
+  const doc = parseYaml(result.configYaml);
+  // HOME_DOMAIN rules target 🏠 回家
+  const homeRules = (doc.rules || []).filter((r) => typeof r === "string" && r.includes("19970626.xyz"));
+  for (const rule of homeRules) {
+    assert.match(rule, /回家/, `HOME_DOMAIN rule should target 🏠 回家: ${rule}`);
+  }
+  // .lan/.local target DIRECT
+  const lanLocalRules = (doc.rules || []).filter(
+    (r) => typeof r === "string" && (r.includes("DOMAIN-SUFFIX,lan,") || r.includes("DOMAIN-SUFFIX,local,"))
+  );
+  for (const rule of lanLocalRules) {
+    assert.ok(rule.endsWith(",DIRECT"), `.lan/.local should target DIRECT: ${rule}`);
+  }
+  // No exit-node-allow-lan-access
+  assert.doesNotMatch(result.configYaml, /exit-node-allow-lan-access/);
+});
+
+// ======================== fake-ip-filter file checks ========================
+
+test("fake-ip-filter-common-domain.list has no template variables", () => {
+  const content = readFileSync(resolve(rootDir, "rules/fake-ip-filter-common-domain.list"), "utf8");
+  assert.ok(!content.includes("HOME_DOMAIN"));
+  assert.ok(!content.includes("TS_DOMAIN"));
+});
+
+test("fake-ip-filter-tailnet-domain.list may contain TS_DOMAIN", () => {
+  const content = readFileSync(resolve(rootDir, "rules/fake-ip-filter-tailnet-domain.list"), "utf8");
+  // It may or may not; just don't assert it's absent
+});
+
+test("fake-ip-filter-home-domain.list may contain HOME_DOMAIN", () => {
+  const content = readFileSync(resolve(rootDir, "rules/fake-ip-filter-home-domain.list"), "utf8");
+  // It may or may not; just don't assert it's absent
+});
+
+test("Windows body has no HOME_DOMAIN or TS_DOMAIN in fake-ip-filter entries", () => {
+  const body = builtInTemplateById("windows").body;
+  // Extract fake-ip-filter section
+  const filterMatch = body.match(/fake-ip-filter:[\s\S]*?(?=\n  \S|$)/);
+  assert.ok(filterMatch, "Windows should have fake-ip-filter section");
+  const filterSection = filterMatch[0];
+  // Should have common entries
+  assert.ok(filterSection.includes("*.lan"));
+  assert.ok(filterSection.includes("*.local"));
+  assert.ok(filterSection.includes("dns.msftncsi.com"));
+  // Must NOT have HOME_DOMAIN or TS_DOMAIN
+  assert.ok(!filterSection.includes("HOME_DOMAIN"), "Windows fake-ip-filter must not have HOME_DOMAIN");
+  assert.ok(!filterSection.includes("TS_DOMAIN"), "Windows fake-ip-filter must not have TS_DOMAIN");
+  // Must NOT have tailscale proxy
+  assert.ok(!body.includes("tailscale"), "Windows body must not contain tailscale");
+  assert.ok(!body.includes("🏠 回家"), "Windows body must not contain 🏠 回家");
+  assert.ok(!body.includes("📲 谷歌推送"), "Windows body must not contain 📲 谷歌推送");
+});
+
 // ======================== Custom template tests ========================
 test("saved templates always elevate PROFILE_NAME to required", () => {
   const template = normalizeTemplate({

@@ -196,6 +196,9 @@ curl -s https://www.amazon.co.jp -o /dev/null -w "%{http_code}" # 日本出口
 
 - MRS 规则文件由 mihomo 客户端根据 `rule-provider` 的 `interval` 自动更新，无需手动下载
 - 日本强制规则：`japan-services-domain.list` 是主规则，`jp_ip.mrs` 是兜底。如果 `jp_ip` 误伤非日本 IP，可删除 `jp_ip` provider 和对应 RULE-SET
+- `jp_ip` 和 `cn_ip` 默认使用 `no-resolve`。如果希望「域名未命中时再按解析 IP 判断」，可以移除 `no-resolve`
+- NAS 模板 fake-ip-filter 使用 `fake-ip-filter-common-domain.list` + `fake-ip-filter-home-domain.list`，需要 `HOME_DOMAIN` 变量（默认 `19970626.xyz`），不需要 `TS_DOMAIN`
+- NAS 模板不包含 tailscale 出站，不需要 `TS_DOMAIN`
 - 如果防火墙阻挡了 1053 端口的入站 UDP/TCP，LAN 客户端 DNS 解析会失败
 - 不建议在生产 NAS（存有重要数据）上作为实验性功能开启
 

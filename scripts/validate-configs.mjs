@@ -520,6 +520,79 @@ function runValidation(builtInTemplateById, DEFAULT_TEMPLATES, renderConfig, lis
     failures++;
   }
 
+  // ======================== L. Default variable rendering ========================
+  console.log("\n=== Validating default variable rendering ===");
+
+  for (const template of DEFAULT_TEMPLATES) {
+    const id = template.id;
+    // Build variables from template defaults only
+    const variables = {};
+    for (const v of template.variables) {
+      variables[v.name] = v.defaultValue;
+    }
+    // Add RULE_BASE_URL which is always injected
+    variables.RULE_BASE_URL = "http://local.test/rules";
+    // GENERATED_AT is auto-set, PROXIES_YAML is auto-set
+    // Do NOT add HOME_DOMAIN or TS_DOMAIN unless the template declares them
+
+    try {
+      const result = renderConfig({
+        template: builtInTemplateById(id),
+        nodesText: [
+          "ss://YWVzLTEyOC1nY206cGFzc0B1cy5leGFtcGxlLmNvbTo4Mzg4#us-test",
+          "ss://YWVzLTEyOC1nY206cGFzc0BqcC5leGFtcGxlLmNvbTo4Mzg4#jp-test",
+        ].join("\n"),
+        variables,
+      });
+
+      const rawYaml = result.configYaml;
+
+      // No unresolved {{...}} placeholders
+      if (/\{\{\s*[A-Z0-9_]+\s*\}\}/i.test(rawYaml)) {
+        console.error(`FAIL: ${id} default render has unresolved placeholders`);
+        failures++;
+      }
+
+      // Windows-specific checks
+      if (id === "windows") {
+        if (rawYaml.includes("HOME_DOMAIN}") || rawYaml.includes("TS_DOMAIN}")) {
+          console.error(`FAIL: ${id} default render must not have HOME_DOMAIN or TS_DOMAIN placeholders`);
+          failures++;
+        }
+        if (rawYaml.includes("tailscale") || rawYaml.includes("🏠 回家") || rawYaml.includes("📲 谷歌推送")) {
+          console.error(`FAIL: ${id} default render must not contain tailscale/回家/谷歌推送`);
+          failures++;
+        }
+      }
+
+      console.log(`  OK - ${id} default render: ${result.byteLength} bytes`);
+
+    } catch (error) {
+      console.error(`FAIL: ${id} default render failed: ${error.message}`);
+      failures++;
+    }
+  }
+
+  // ======================== M. Worker /rules whitelist check ========================
+  console.log("\n=== Validating Worker /rules whitelist ===");
+
+  const allowed = listRuleFiles();
+  const templateIncludePattern = /#\s*t-sub:include\s+rules\/([^\s]+)/g;
+
+  for (const template of DEFAULT_TEMPLATES) {
+    const body = template.body;
+    let match;
+    while ((match = templateIncludePattern.exec(body)) !== null) {
+      const filename = match[1];
+      if (!allowed.includes(filename)) {
+        console.error(`FAIL: ${template.id} references rules/${filename} but it is not in Worker whitelist`);
+        failures++;
+      }
+    }
+  }
+
+  console.log(`  OK - all template includes are whitelisted`);
+
   console.log(`\n=== Results ===`);
   if (failures === 0) {
     console.log("All validations passed.");

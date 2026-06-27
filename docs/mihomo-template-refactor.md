@@ -76,6 +76,31 @@ Android 额外：
 8. MATCH → 🚀 默认代理
 ```
 
+### fake-ip-filter 拆分
+
+fake-ip-filter 已按平台需求拆分为 4 个文件，源文件在 `rules/` 下：
+
+| 文件 | 变量 | Windows | NAS | Android |
+|------|------|---------|-----|---------|
+| `fake-ip-filter-common-domain.list` | 无 | ✅ | ✅ | ✅ |
+| `fake-ip-filter-home-domain.list` | `HOME_DOMAIN` | ❌ | ✅ | ✅ |
+| `fake-ip-filter-tailnet-domain.list` | `TS_DOMAIN` | ❌ | ❌ | ✅ |
+| `fake-ip-filter-android-domain.list` | 无 | ❌ | ❌ | ✅ |
+
+- **Windows** 只使用 common，不含 HOME_DOMAIN / TS_DOMAIN，默认变量渲染成功。
+- **NAS** 使用 common + home-domain，需要 HOME_DOMAIN，不含 TS_DOMAIN。
+- **Android** 使用全部 4 个文件，需要 HOME_DOMAIN 和 TS_DOMAIN。
+
+### /rules 路由
+
+Worker `/rules/` 路由现在支持 GET 和 HEAD 方法。HEAD 返回与 GET 一致的关键 headers（content-type、etag、cache-control），body 为空。
+POST 返回 405，路径穿越返回 404/400。
+
+### cn_ip / jp_ip 的 no-resolve
+
+`jp_ip` 和 `cn_ip` 默认使用 `no-resolve`。如果用户希望「域名未命中时再按解析 IP 判断」，可以移除 `no-resolve`。
+如果 `jp_ip` 误伤，可以删除 `jp_ip` provider 和对应 `RULE-SET,jp_ip` 行。
+
 ### 删除的旧配置
 
 - `geosite:cn` DNS 策略

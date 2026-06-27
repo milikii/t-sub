@@ -1,7 +1,20 @@
 # Android connectivity checks
 connectivitycheck.gstatic.com
 connectivitycheck.android.com
+android.clients.google.com
+clients3.google.com
 time.android.com
+
+# FCM push services — must resolve to real IPs for push delivery
+mtalk.google.com
+alt1-mtalk.google.com
+alt2-mtalk.google.com
+alt3-mtalk.google.com
+alt4-mtalk.google.com
+alt5-mtalk.google.com
+alt6-mtalk.google.com
+alt7-mtalk.google.com
+alt8-mtalk.google.com
 
 # Games and LAN-sensitive services
 +.srv.nintendo.net

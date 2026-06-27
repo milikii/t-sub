@@ -47,7 +47,8 @@ dns:
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   fake-ip-filter:
-    # t-sub:include rules/fake-ip-filter-domain.list
+    # t-sub:include rules/fake-ip-filter-common-domain.list
+    # t-sub:include rules/fake-ip-filter-home-domain.list
     # t-sub:include rules/fake-ip-filter-tailnet-domain.list
     # t-sub:include rules/fake-ip-filter-android-domain.list
   default-nameserver:

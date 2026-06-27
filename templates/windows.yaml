@@ -22,8 +22,7 @@ dns:
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   fake-ip-filter:
-    # t-sub:include rules/fake-ip-filter-domain.list
-    # t-sub:include rules/fake-ip-filter-tailnet-domain.list
+    # t-sub:include rules/fake-ip-filter-common-domain.list
   default-nameserver:
     - 223.5.5.5
     - 119.29.29.29

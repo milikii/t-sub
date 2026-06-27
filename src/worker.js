@@ -176,7 +176,7 @@ async function renderRoute(request, env, url) {
 }
 
 async function rulesRoute(request, url) {
-  if (request.method !== "GET") return methodNotAllowed();
+  if (request.method !== "GET" && request.method !== "HEAD") return methodNotAllowed();
 
   const filename = url.pathname.slice("/rules/".length);
   if (!filename || filename.includes("/") || filename.includes("..") || filename !== decodeURIComponent(filename)) {
@@ -198,7 +198,7 @@ async function rulesRoute(request, url) {
   const hashArray = [...new Uint8Array(hashBuffer)];
   const etag = `"${hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")}"`;
 
-  return new Response(body, {
+  return new Response(request.method === "HEAD" ? null : body, {
     headers: {
       "content-type": "text/plain; charset=utf-8",
       "cache-control": "public, max-age=300",

@@ -1,22 +1,40 @@
 # t-sub 规则目录
 
+## fake-ip-filter 拆分说明
+
+fake-ip-filter 按平台需求拆分为 4 个文件：
+
+| 文件 | 变量 | Windows | NAS | Android |
+|------|------|---------|-----|---------|
+| `fake-ip-filter-common-domain.list` | 无 | ✅ | ✅ | ✅ |
+| `fake-ip-filter-home-domain.list` | `HOME_DOMAIN` | ❌ | ✅ | ✅ |
+| `fake-ip-filter-tailnet-domain.list` | `TS_DOMAIN` | ❌ | ❌ | ✅ |
+| `fake-ip-filter-android-domain.list` | 无 | ❌ | ❌ | ✅ |
+
+- **Windows** 只使用 common，不需要 `HOME_DOMAIN` / `TS_DOMAIN`，默认变量渲染成功。
+- **NAS** 使用 common + home-domain，需要 `HOME_DOMAIN`（默认 `19970626.xyz`），不需要 `TS_DOMAIN`。
+- **Android** 使用全部 4 个文件，需要 `HOME_DOMAIN` 和 `TS_DOMAIN`。
+
 ## 目录结构
 
 ```
 rules/
 ├── README.md
-├── upstream-sources.json              # 上游规则源定义
-├── custom-direct-domain.list          # [manual] 用户自维护 DIRECT 覆盖
-├── custom-proxy-domain.list           # [manual] 用户自维护 PROXY 覆盖
-├── pt-direct-domain.list              # [generated] PT/Tracker 域名 → DIRECT
-├── misc-direct-domain.list            # [manual] 非 PT 杂项直连域名
-├── android-fcm-domain.list            # [manual] FCM 推送域名 → 📲 谷歌推送
-├── android-google-play-domain.list    # [manual] Google Play 域名 → 🚀 默认代理
-├── japan-services-domain.list         # [manual] 日本服务域名 → 🇯🇵 日本节点
-├── fake-ip-filter-domain.list         # [manual] DNS fake-ip 过滤（三端通用）
-├── fake-ip-filter-tailnet-domain.list # [manual] Tailnet DNS 过滤（Android/Windows）
-├── fake-ip-filter-android-domain.list # [manual] Android DNS 过滤
+├── upstream-sources.json                    # 上游规则源定义
+├── custom-direct-domain.list                # [manual] 用户自维护 DIRECT 覆盖
+├── custom-proxy-domain.list                 # [manual] 用户自维护 PROXY 覆盖
+├── pt-direct-domain.list                    # [generated] PT/Tracker 域名 → DIRECT
+├── misc-direct-domain.list                  # [manual] 非 PT 杂项直连域名
+├── android-fcm-domain.list                  # [manual] FCM 推送域名 → 📲 谷歌推送
+├── android-google-play-domain.list          # [manual] Google Play 域名 → 🚀 默认代理
+├── japan-services-domain.list               # [manual] 日本服务域名 → 🇯🇵 日本节点
+├── fake-ip-filter-common-domain.list        # [manual] DNS fake-ip 过滤（三端通用，无变量）
+├── fake-ip-filter-home-domain.list          # [manual] 家庭域名 fake-ip 过滤（NAS/Android，含 HOME_DOMAIN）
+├── fake-ip-filter-tailnet-domain.list       # [manual] Tailnet DNS 过滤（仅 Android，含 TS_DOMAIN）
+├── fake-ip-filter-android-domain.list       # [manual] Android 专属 DNS 过滤（连通性/FCM/游戏）
 ```
+
+> 旧 `fake-ip-filter-domain.list` 保留向后兼容（Worker 仍然白名单内），但已不被任何模板引用。
 
 ## MRS-first 路线
 

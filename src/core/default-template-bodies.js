@@ -52,16 +52,27 @@ dns:
   fake-ip-filter:
     - '*.lan'
     - '*.local'
-    - '*.{{HOME_DOMAIN}}'
     - localhost
     - localhost.ptlogin2.qq.com
     - dns.msftncsi.com
     - +.msftconnecttest.com
     - +.msftncsi.com
+    - '*.{{HOME_DOMAIN}}'
     - '*.{{TS_DOMAIN}}'
     - connectivitycheck.gstatic.com
     - connectivitycheck.android.com
+    - android.clients.google.com
+    - clients3.google.com
     - time.android.com
+    - mtalk.google.com
+    - alt1-mtalk.google.com
+    - alt2-mtalk.google.com
+    - alt3-mtalk.google.com
+    - alt4-mtalk.google.com
+    - alt5-mtalk.google.com
+    - alt6-mtalk.google.com
+    - alt7-mtalk.google.com
+    - alt8-mtalk.google.com
     - +.srv.nintendo.net
     - +.stun.playstation.net
     - +.xboxlive.com
@@ -409,12 +420,12 @@ dns:
   fake-ip-filter:
     - '*.lan'
     - '*.local'
-    - '*.{{HOME_DOMAIN}}'
     - localhost
     - localhost.ptlogin2.qq.com
     - dns.msftncsi.com
     - +.msftconnecttest.com
     - +.msftncsi.com
+    - '*.{{HOME_DOMAIN}}'
   default-nameserver:
     - 223.5.5.5
     - 119.29.29.29
@@ -673,13 +684,11 @@ dns:
   fake-ip-filter:
     - '*.lan'
     - '*.local'
-    - '*.{{HOME_DOMAIN}}'
     - localhost
     - localhost.ptlogin2.qq.com
     - dns.msftncsi.com
     - +.msftconnecttest.com
     - +.msftncsi.com
-    - '*.{{TS_DOMAIN}}'
   default-nameserver:
     - 223.5.5.5
     - 119.29.29.29

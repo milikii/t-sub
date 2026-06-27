@@ -1,0 +1,2 @@
+# Home domain (for NAS and Android)
+'*.{{HOME_DOMAIN}}'
