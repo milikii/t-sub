@@ -3,6 +3,7 @@ export const RESERVED_TEMPLATE_VARIABLES = new Set([
   "PROXY_NAMES_YAML",
   "GENERATED_AT",
   "NODE_COUNT",
+  "RULE_BASE_URL",
 ]);
 
 const variableNameAliases = new Map([

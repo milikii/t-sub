@@ -1,12 +1,14 @@
-# t-sub config templates
+# t-sub Config Templates
 
 This directory is the source of truth for built-in mihomo client templates.
 
-| File | Client |
-| --- | --- |
-| `android.yaml` | Android mihomo alpha template with TUN, fake-ip DNS, FCM, Google Play rules, US/JP groups, and Tailscale home routing. |
-| `nas-debian.yaml` | Debian NAS Docker template. It exposes a LAN HTTP/SOCKS proxy, keeps TUN disabled, and does not include Tailscale/tailnet rules. |
-| `windows.yaml` | Windows desktop template with local controller and no Tailscale outbound. |
+| File | Client | Platform |
+|------|--------|----------|
+| `android.yaml` | Android (TUN + Tailscale + FCM/Play) | `android` |
+| `windows.yaml` | Windows (local proxy, no TUN, no Tailscale) | `windows` |
+| `nas-debian.yaml` | Debian NAS (TUN transparent side router) | `nas` |
+
+## Editing
 
 After editing any YAML file, run:
 
@@ -14,14 +16,20 @@ After editing any YAML file, run:
 npm run templates:generate
 ```
 
-The generator updates `src/core/default-template-bodies.js`, which is bundled into the Cloudflare Worker. `npm test` runs `npm run templates:check` first, so stale generated template bodies fail fast.
+This updates `src/core/default-template-bodies.js`, which is bundled into the Cloudflare Worker. `npm test` runs `npm run templates:check` first.
 
-Rule-provider files are maintained separately in `../rules/`. Keep public rule URLs under `/rules/*.list` unless you also plan a compatibility migration for existing clients.
+## Template Includes
 
-Template files may include maintained rule snippets with:
+Template files may reference rule snippets with:
 
 ```yaml
 # t-sub:include rules/fake-ip-filter-domain.list
 ```
 
-The include is expanded only when `npm run templates:generate` writes the Worker bundle. Use separate snippets for client-specific behavior, such as tailnet or Android-only fake-ip filters.
+Includes are expanded at generate time. Each line in the referenced file becomes a YAML list item.
+
+## Rule Providers
+
+Rule URLs use `{{RULE_BASE_URL}}` which is injected at render time by the Worker. This variable is hidden from the web UI. The Worker's `/rules/` endpoint serves whitelisted files.
+
+MRS rule providers (cn, private, openai, github, geoip-cn) are fetched from `MetaCubeX/meta-rules-dat` GitHub raw URLs.

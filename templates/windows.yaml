@@ -5,17 +5,19 @@ bind-address: '*'
 ipv6: false
 mode: rule
 log-level: info
-find-process-mode: strict
+find-process-mode: off
 unified-delay: true
 tcp-concurrent: true
-geodata-mode: true
+
 profile:
   store-selected: true
   store-fake-ip: true
+
 dns:
   enable: true
   listen: 127.0.0.1:1053
   ipv6: false
+  cache-algorithm: arc
   respect-rules: true
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
@@ -33,33 +35,15 @@ dns:
     - https://doh.pub/dns-query
   direct-nameserver-follow-policy: true
   nameserver:
-    - https://doh.pub/dns-query
-    - https://dns.alidns.com/dns-query
-  fallback:
     - https://1.1.1.1/dns-query
     - https://8.8.8.8/dns-query
-  fallback-filter:
-    geoip: true
-    geoip-code: CN
-    ipcidr:
-      - 240.0.0.0/4
-      - 0.0.0.0/32
   nameserver-policy:
     geosite:cn:
-      - https://doh.pub/dns-query
       - https://dns.alidns.com/dns-query
+      - https://doh.pub/dns-query
     geosite:private:
-      - https://doh.pub/dns-query
       - https://dns.alidns.com/dns-query
-    geosite:geolocation-!cn:
-      - https://1.1.1.1/dns-query
-      - https://8.8.8.8/dns-query
-    geosite:openai:
-      - https://1.1.1.1/dns-query
-      - https://8.8.8.8/dns-query
-    geosite:github:
-      - https://1.1.1.1/dns-query
-      - https://cloudflare-dns.com/dns-query
+      - https://doh.pub/dns-query
 
 rule-providers:
   custom-direct-domain:
@@ -67,98 +51,157 @@ rule-providers:
     behavior: domain
     format: text
     path: ./ruleset/custom-direct-domain.list
-    url: "https://ghp.564672.xyz/https://raw.githubusercontent.com/milikii/t-sub/master/rules/custom-direct-domain.list"
+    url: "{{RULE_BASE_URL}}/custom-direct-domain.list"
     interval: 86400
   custom-proxy-domain:
     type: http
     behavior: domain
     format: text
     path: ./ruleset/custom-proxy-domain.list
-    url: "https://ghp.564672.xyz/https://raw.githubusercontent.com/milikii/t-sub/master/rules/custom-proxy-domain.list"
+    url: "{{RULE_BASE_URL}}/custom-proxy-domain.list"
     interval: 86400
-  pt-direct:
+  pt-direct-domain:
     type: http
     behavior: domain
     format: text
-    path: ./ruleset/pt-direct.list
-    url: "https://ghp.564672.xyz/https://raw.githubusercontent.com/milikii/t-sub/master/rules/pt-direct.list"
+    path: ./ruleset/pt-direct-domain.list
+    url: "{{RULE_BASE_URL}}/pt-direct-domain.list"
+    interval: 86400
+  misc-direct-domain:
+    type: http
+    behavior: domain
+    format: text
+    path: ./ruleset/misc-direct-domain.list
+    url: "{{RULE_BASE_URL}}/misc-direct-domain.list"
+    interval: 86400
+  japan-services-domain:
+    type: http
+    behavior: domain
+    format: text
+    path: ./ruleset/japan-services-domain.list
+    url: "{{RULE_BASE_URL}}/japan-services-domain.list"
+    interval: 86400
+  private:
+    type: http
+    behavior: domain
+    format: mrs
+    path: ./ruleset/private.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/private.mrs"
+    interval: 86400
+  cn:
+    type: http
+    behavior: domain
+    format: mrs
+    path: ./ruleset/cn.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"
+    interval: 86400
+  geoip-cn:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    path: ./ruleset/geoip-cn.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs"
+    interval: 86400
+  openai:
+    type: http
+    behavior: domain
+    format: mrs
+    path: ./ruleset/openai.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/openai.mrs"
+    interval: 86400
+  github:
+    type: http
+    behavior: domain
+    format: mrs
+    path: ./ruleset/github.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/github.mrs"
     interval: 86400
 
 proxies:
 {{PROXIES_YAML}}
 
 proxy-groups:
-  - name: 🚀 节点选择
+  - name: 🚀 默认代理
     type: select
+    include-all-proxies: true
+    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
     proxies:
-      - ⚡ 自动选择
-      - 🇺🇸 美国节点
+      - ⚡ 全部自动
       - 🇯🇵 日本节点
+      - 🇺🇸 美国节点
       - DIRECT
-  - name: ⚡ 自动选择
+  - name: ⚡ 全部自动
     type: url-test
-    include-all: true
-    filter: (?i)(^|[^a-z])(us|jp)([^a-z]|$)|美国|美國|日本|United States|USA|Japan|Tokyo|Osaka|Los Angeles|San Jose|Seattle|Dallas|Chicago|New York|东京|大阪
-    url: https://cp.cloudflare.com/generate_204
-    interval: 300
-    tolerance: 50
-  - name: 🇺🇸 美国节点
-    type: select
-    proxies:
-      - DIRECT
-    include-all: true
-    filter: (?i)(^|[^a-z])us([^a-z]|$)|美国|美國|USA|United States|America|Los Angeles|San Jose|Seattle|Dallas|Chicago|New York
-    url: https://cp.cloudflare.com/generate_204
-    interval: 300
+    lazy: true
+    interval: 600
+    timeout: 3000
+    max-failed-times: 3
+    expected-status: 204
+    empty-fallback: REJECT
+    include-all-proxies: true
+    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
   - name: 🇯🇵 日本节点
     type: select
-    proxies:
-      - DIRECT
-    include-all: true
+    include-all-proxies: true
+    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
     filter: (?i)(^|[^a-z])jp([^a-z]|$)|日本|Japan|Tokyo|Osaka|东京|大阪
-    url: https://cp.cloudflare.com/generate_204
-    interval: 300
+    proxies:
+      - ♻️ 日本自动
+  - name: ♻️ 日本自动
+    type: url-test
+    lazy: true
+    interval: 600
+    timeout: 3000
+    max-failed-times: 3
+    expected-status: 204
+    empty-fallback: REJECT
+    include-all-proxies: true
+    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
+    filter: (?i)(^|[^a-z])jp([^a-z]|$)|日本|Japan|Tokyo|Osaka|东京|大阪
+  - name: 🇺🇸 美国节点
+    type: select
+    include-all-proxies: true
+    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
+    filter: (?i)(^|[^a-z])us([^a-z]|$)|美国|美國|USA|United States|America|Los Angeles|San Jose|Seattle|Dallas|Chicago|New York
+    proxies:
+      - ♻️ 美国自动
+  - name: ♻️ 美国自动
+    type: url-test
+    lazy: true
+    interval: 600
+    timeout: 3000
+    max-failed-times: 3
+    expected-status: 204
+    empty-fallback: REJECT
+    include-all-proxies: true
+    exclude-filter: (?i)(流量|剩余|到期|套餐|官网|traffic|expire)
+    filter: (?i)(^|[^a-z])us([^a-z]|$)|美国|美國|USA|United States|America|Los Angeles|San Jose|Seattle|Dallas|Chicago|New York
 
 rules:
+  # 本地安全
   - DOMAIN-SUFFIX,lan,DIRECT
   - DOMAIN-SUFFIX,local,DIRECT
   - DOMAIN-SUFFIX,localhost,DIRECT
-  - GEOSITE,private,DIRECT
   - DOMAIN-SUFFIX,{{HOME_DOMAIN}},DIRECT
   - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
   - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
   - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
   - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - RULE-SET,private,DIRECT
+  # 自定义规则
   - RULE-SET,custom-direct-domain,DIRECT
-  - RULE-SET,custom-proxy-domain,🚀 节点选择
-  - RULE-SET,pt-direct,DIRECT
-  - GEOSITE,openai,🇺🇸 美国节点
-  - GEOSITE,github,🇺🇸 美国节点
-  - DOMAIN-SUFFIX,jp,🇯🇵 日本节点
-  - DOMAIN-SUFFIX,co.jp,🇯🇵 日本节点
-  - DOMAIN-SUFFIX,ne.jp,🇯🇵 日本节点
-  - DOMAIN-SUFFIX,or.jp,🇯🇵 日本节点
-  - DOMAIN-SUFFIX,go.jp,🇯🇵 日本节点
-  - DOMAIN-SUFFIX,ac.jp,🇯🇵 日本节点
-  - DOMAIN-SUFFIX,ed.jp,🇯🇵 日本节点
-  - DOMAIN-SUFFIX,abema.tv,🇯🇵 日本节点
-  - DOMAIN-SUFFIX,dmm.com,🇯🇵 日本节点
-  - DOMAIN-SUFFIX,niconico.com,🇯🇵 日本节点
-  - DOMAIN-SUFFIX,nicovideo.jp,🇯🇵 日本节点
-  - DOMAIN-SUFFIX,tver.jp,🇯🇵 日本节点
-  - DOMAIN-SUFFIX,radiko.jp,🇯🇵 日本节点
-  - DOMAIN-SUFFIX,pixiv.net,🇯🇵 日本节点
-  - DOMAIN-SUFFIX,line.me,🇯🇵 日本节点
-  - GEOSITE,ABEMA,🇯🇵 日本节点
-  - GEOSITE,CATEGORY-BANK-JP,🇯🇵 日本节点
-  - GEOSITE,CATEGORY-NTP-JP,🇯🇵 日本节点
-  - GEOSITE,NICONICO,🇯🇵 日本节点
-  - GEOSITE,PIXIV,🇯🇵 日本节点
-  - GEOSITE,RADIKO,🇯🇵 日本节点
-  - GEOSITE,TVER,🇯🇵 日本节点
-  - GEOSITE,LINE,🇯🇵 日本节点
-  - GEOSITE,cn,DIRECT
-  - GEOIP,CN,DIRECT,no-resolve
-  - MATCH,🚀 节点选择
+  - RULE-SET,custom-proxy-domain,🚀 默认代理
+  # PT / 杂项直连
+  - RULE-SET,pt-direct-domain,DIRECT
+  - RULE-SET,misc-direct-domain,DIRECT
+  # AI / 开发
+  - RULE-SET,openai,🇺🇸 美国节点
+  - RULE-SET,github,🇺🇸 美国节点
+  # 日本服务
+  - RULE-SET,japan-services-domain,🇯🇵 日本节点
+  # 国内
+  - RULE-SET,cn,DIRECT
+  - RULE-SET,geoip-cn,DIRECT,no-resolve
+  - MATCH,🚀 默认代理
 
 external-controller: 127.0.0.1:9090

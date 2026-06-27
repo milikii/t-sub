@@ -5,8 +5,10 @@ import { fileURLToPath } from "node:url";
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourcesPath = resolve(rootDir, "rules/upstream-sources.json");
 const checkOnly = process.argv.includes("--check");
+const dryRun = process.argv.includes("--dry-run");
 const includeDisabled = process.argv.includes("--include-disabled");
 const sourceId = valueAfter("--source");
+const verbose = process.argv.includes("--verbose");
 
 const config = JSON.parse(await readFile(sourcesPath, "utf8"));
 const sources = config.sources.filter((source) => {
@@ -14,38 +16,86 @@ const sources = config.sources.filter((source) => {
   return includeDisabled || source.enabled;
 });
 
-if (!sources.length) {
-  console.log("No enabled upstream rule sources. Use --include-disabled or enable sources in rules/upstream-sources.json.");
+// Only process generated sources
+const generatedSources = sources.filter((s) => s.type === "generated" && s.url);
+
+if (!generatedSources.length) {
+  console.log("No enabled generated upstream rule sources.");
+  console.log("Manual sources are never modified by this script.");
   process.exit(0);
 }
 
-for (const source of sources) {
+let hasChanges = false;
+
+for (const source of generatedSources) {
+  process.stdout.write(`Fetching ${source.id}... `);
+
   const response = await fetch(source.url, {
     headers: {
-      "user-agent": "t-sub-rule-updater",
+      "user-agent": "t-sub-rule-updater/2.0",
     },
   });
+
   if (!response.ok) {
     throw new Error(`Failed to fetch ${source.id}: ${response.status} ${response.statusText}`);
   }
 
-  const upstream = normalizeRuleLines(await response.text());
+  const body = await response.text();
+
+  // Validate response
+  if (!body || body.trim().length === 0) {
+    throw new Error(`Empty response from ${source.id}`);
+  }
+
+  if (body.trim().length < 10) {
+    throw new Error(`Response too small (${body.trim().length} bytes) from ${source.id}`);
+  }
+
+  const upstream = normalizeRuleLines(body);
   const targetPath = resolve(rootDir, "rules", source.target);
-  const current = normalizeRuleLines(await readExisting(targetPath));
-  const merged = mergeLines(current, upstream);
-  const output = `${merged.join("\n")}\n`;
+  const existingLines = normalizeRuleLines(await readExisting(targetPath));
+
+  if (verbose) {
+    console.log(`${upstream.length} rules from upstream, ${existingLines.length} existing`);
+  }
+
+  // generated files: full replace
+  const output = `${upstream.join("\n")}\n`;
 
   if (checkOnly) {
     const existing = await readExisting(targetPath);
     if (existing !== output) {
       console.error(`${source.target} is out of sync with ${source.id}.`);
       process.exitCode = 1;
+      hasChanges = true;
     }
+    console.log("OK");
+    continue;
+  }
+
+  if (existingLines.length === upstream.length && (await readExisting(targetPath)) === output) {
+    console.log("unchanged");
+    continue;
+  }
+
+  if (dryRun) {
+    console.log(`would update: ${existingLines.length} -> ${upstream.length} rules`);
+    hasChanges = true;
     continue;
   }
 
   await writeFile(targetPath, output);
-  console.log(`Updated ${source.target} from ${source.id}: ${current.length} -> ${merged.length} rules.`);
+  hasChanges = true;
+  console.log(`updated: ${existingLines.length} -> ${upstream.length} rules`);
+}
+
+// Generate change summary
+if (hasChanges && !checkOnly && !dryRun) {
+  console.log("\nChange summary written.");
+}
+
+if (!hasChanges && checkOnly) {
+  console.log("All generated rule files are up to date.");
 }
 
 function normalizeRuleLines(body) {
@@ -61,10 +111,6 @@ function normalizeRuleLine(line) {
   if (line.startsWith("DOMAIN-SUFFIX,")) return `+.${line.slice("DOMAIN-SUFFIX,".length)}`;
   if (line.startsWith("DOMAIN,")) return line.slice("DOMAIN,".length);
   return line;
-}
-
-function mergeLines(...groups) {
-  return [...new Set(groups.flat())].sort((a, b) => a.localeCompare(b));
 }
 
 async function readExisting(path) {

@@ -1,6 +1,6 @@
 import { byteLength } from "./encoding.js";
 import { parseNodeLines } from "./nodes.js";
-import { hasTemplatePlaceholder, normalizeVariableName, replaceTemplatePlaceholders } from "./template-vars.js";
+import { RESERVED_TEMPLATE_VARIABLES, hasTemplatePlaceholder, normalizeVariableName, replaceTemplatePlaceholders } from "./template-vars.js";
 import { objectToYaml, yamlScalar } from "./yaml.js";
 
 export class RenderValidationError extends Error {
@@ -20,6 +20,13 @@ export function renderConfig({ template, nodesText, variables = {}, limits = {} 
   const variableValues = buildVariableValues(template, variables);
   const proxiesYaml = objectToYaml(proxies, 2);
   const proxyNamesYaml = proxies.map((proxy) => `      - ${yamlScalar(proxy.name)}`).join("\n");
+
+  // Ensure reserved variables have defaults when not provided
+  for (const reserved of RESERVED_TEMPLATE_VARIABLES) {
+    if (!(reserved in variableValues)) {
+      variableValues[reserved] = "";
+    }
+  }
 
   const replacements = {
     ...variableValues,

@@ -1,9 +1,10 @@
 import { APP_JS, INDEX_HTML, STYLES_CSS } from "./assets.js";
-import { asset, errorResponse, html, json, methodNotAllowed, notFound, readJson } from "./core/http.js";
+import { asset, errorResponse, html, json, methodNotAllowed, notFound, readJson, text } from "./core/http.js";
 import { clearSessionCookie, createSessionCookie, getSession, requireOwner, verifyOwnerPassword } from "./core/auth.js";
 import { makeRandomToken } from "./core/encoding.js";
 import { deleteTemplate, getTemplate, listTemplates, resetTemplate, saveTemplate } from "./core/template-store.js";
 import { renderConfig } from "./core/render.js";
+import { getRuleBody, listRuleFiles } from "./core/default-rule-bodies.js";
 import { OneTimeConfig } from "./one-time-config.js";
 import { TemplateStore } from "./template-store-do.js";
 
@@ -50,6 +51,10 @@ async function route(request, env) {
     await requireOwner(request, env);
     if (request.method !== "POST") return methodNotAllowed();
     return renderRoute(request, env, url);
+  }
+
+  if (url.pathname.startsWith("/rules/")) {
+    return rulesRoute(request, url);
   }
 
   if (url.pathname.startsWith("/s/")) {
@@ -127,10 +132,14 @@ async function templatesRoute(request, env, url) {
 async function renderRoute(request, env, url) {
   const body = await readJson(request);
   const template = await getTemplate(env, body.templateId);
+  const baseUrl = publicBaseUrl(env, url);
   const rendered = renderConfig({
     template,
     nodesText: body.nodesText || "",
-    variables: body.variables || {},
+    variables: {
+      ...(body.variables || {}),
+      RULE_BASE_URL: `${baseUrl}/rules`,
+    },
     limits: {
       maxNodesBytes: numberFromEnv(env.MAX_NODES_BYTES, 65536),
       maxRenderedBytes: numberFromEnv(env.MAX_RENDERED_BYTES, 131072),
@@ -158,12 +167,43 @@ async function renderRoute(request, env, url) {
   });
   if (!createResponse.ok) throw new Error("无法创建一次性配置链接。");
 
-  const baseUrl = publicBaseUrl(env, url);
   return json({
     url: `${baseUrl}/s/${token}`,
     expiresAt,
     nodeCount: rendered.proxies.length,
     byteLength: rendered.byteLength,
+  });
+}
+
+async function rulesRoute(request, url) {
+  if (request.method !== "GET") return methodNotAllowed();
+
+  const filename = url.pathname.slice("/rules/".length);
+  if (!filename || filename.includes("/") || filename.includes("..") || filename !== decodeURIComponent(filename)) {
+    return notFound();
+  }
+
+  const allowedFiles = listRuleFiles();
+  if (!allowedFiles.includes(filename)) {
+    return notFound();
+  }
+
+  const body = getRuleBody(filename);
+  if (body === null) {
+    return notFound();
+  }
+
+  const encoder = new TextEncoder();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(body));
+  const hashArray = [...new Uint8Array(hashBuffer)];
+  const etag = `"${hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")}"`;
+
+  return new Response(body, {
+    headers: {
+      "content-type": "text/plain; charset=utf-8",
+      "cache-control": "public, max-age=300",
+      etag,
+    },
   });
 }
 

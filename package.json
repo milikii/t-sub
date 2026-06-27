@@ -7,9 +7,12 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "test": "npm run templates:check && node --test",
+    "test": "npm run templates:check && npm run rules:check && node --test",
+    "configs:validate": "node scripts/validate-configs.mjs",
     "templates:generate": "node scripts/generate-template-bodies.mjs",
     "templates:check": "node scripts/generate-template-bodies.mjs --check",
+    "rules:generate": "node scripts/generate-rule-bodies.mjs",
+    "rules:check": "node scripts/generate-rule-bodies.mjs --check",
     "rules:update": "node scripts/update-rules.mjs",
     "hash-password": "node scripts/hash-password.mjs"
   },
@@ -24,6 +27,7 @@
     }
   },
   "devDependencies": {
+    "js-yaml": "^5.2.0",
     "wrangler": "^4.0.0"
   }
 }

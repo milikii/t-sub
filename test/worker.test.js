@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import worker, { OneTimeConfig, TemplateStore } from "../src/worker.js";
+import { listRuleFiles, getRuleBody } from "../src/core/default-rule-bodies.js";
 
 test("worker login, render, and one-time subscription flow", async () => {
   const env = await makeEnv("test-password");
@@ -69,7 +70,7 @@ test("worker login, render, and one-time subscription flow", async () => {
   assert.equal(resetAndroid.status, 200);
   const resetBody = await resetAndroid.json();
   assert.match(resetBody.template.body, /external-ui-url:/);
-  assert.match(resetBody.template.body, /MATCH,🚀 节点选择/);
+  assert.match(resetBody.template.body, /MATCH,🚀 默认代理/);
   assert.deepEqual(resetBody.template.variables, [
     { name: "HOME_DOMAIN", required: false, defaultValue: "19970626.xyz" },
     { name: "TS_DOMAIN", required: false, defaultValue: "tailc1b432.ts.net" },
@@ -272,9 +273,9 @@ test("worker login, render, and one-time subscription flow", async () => {
   assert.doesNotMatch(yaml, /auth-key:/);
   assert.match(yaml, /state-dir: \.\/tailscale/);
   assert.match(yaml, /RULE-SET,custom-direct-domain,DIRECT/);
-  assert.match(yaml, /RULE-SET,custom-proxy-domain,🚀 节点选择/);
-  assert.match(yaml, /RULE-SET,google-play-domain,🚀 节点选择/);
-  assert.match(yaml, /MATCH,🚀 节点选择/);
+  assert.match(yaml, /RULE-SET,custom-proxy-domain,🚀 默认代理/);
+  assert.match(yaml, /RULE-SET,android-google-play-domain,🚀 默认代理/);
+  assert.match(yaml, /MATCH,🚀 默认代理/);
 
   const secondGet = await worker.fetch(new Request(body.url), env);
   assert.equal(secondGet.status, 200);
@@ -316,6 +317,63 @@ test("one-time subscription can disable grace replay", async () => {
   const secondGet = await worker.fetch(new Request(body.url), env);
   assert.equal(secondGet.status, 410);
   assert.match(await secondGet.text(), /链接已使用/);
+});
+
+// /rules/ route tests
+test("/rules/ returns known rule files", async () => {
+  const env = await makeEnv("test-password");
+  const allowedFiles = listRuleFiles();
+  assert.ok(allowedFiles.length > 0);
+
+  for (const filename of allowedFiles) {
+    const response = await worker.fetch(
+      new Request(`http://local.test/rules/${filename}`),
+      env,
+    );
+    assert.equal(response.status, 200, `GET /rules/${filename} should return 200`);
+    assert.match(
+      response.headers.get("content-type") || "",
+      /text\/plain/,
+      `/rules/${filename} should have text/plain content-type`,
+    );
+    assert.ok(response.headers.get("etag"), `/rules/${filename} should have ETag`);
+    assert.match(
+      response.headers.get("cache-control") || "",
+      /public/,
+      `/rules/${filename} should have public cache-control`,
+    );
+
+    const body = await response.text();
+    assert.ok(body.length > 0, `/rules/${filename} should have content`);
+  }
+});
+
+test("/rules/ returns 404 for unknown files", async () => {
+  const env = await makeEnv("test-password");
+  const response = await worker.fetch(
+    new Request("http://local.test/rules/nonexistent.list"),
+    env,
+  );
+  assert.equal(response.status, 404);
+});
+
+test("/rules/ rejects path traversal", async () => {
+  const env = await makeEnv("test-password");
+  const response = await worker.fetch(
+    new Request("http://local.test/rules/../worker.js"),
+    env,
+  );
+  assert.equal(response.status, 404);
+});
+
+test("/rules/ rejects only GET method", async () => {
+  const env = await makeEnv("test-password");
+  const filename = listRuleFiles()[0];
+  const response = await worker.fetch(
+    new Request(`http://local.test/rules/${filename}`, { method: "POST" }),
+    env,
+  );
+  assert.equal(response.status, 405);
 });
 
 async function makeEnv(password) {

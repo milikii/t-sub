@@ -147,9 +147,9 @@ Android 内置模板已经是完整 mihomo alpha 配置，不需要手写 `{{PRO
 
 三端内置模板现在按用途分开：
 
-- Android：开启 TUN、fake-ip DNS、FCM 规则、Play 商店下载规则、US/JP 分组，并内置一个 `type: tailscale` 的 `🏠 回家` 出站。访问 `192.168.1.0/24` 和 Tailscale `100.64.0.0/10` 会走回家，不影响 NAS/Windows 模板。
-- NAS：面向 NAS 本机 Docker mihomo 代理容器。`allow-lan: true`，`tun.enable: false`，不接管路由、不做 DNS 劫持，只暴露 `7890` HTTP/SOCKS 代理端口；`lan-allowed-ips` 收紧到局域网私网（`192.168.0.0/16`、`10.0.0.0/8`、Docker 网桥常用的 `172.16.0.0/12`）。模板完全不包含 Tailscale、ts.net 或 `100.64.0.0/10` tailnet 规则，也不开放 Web 控制接口。`fake-ip-filter` 已包含 `*.19970626.xyz` 避免家用域名被 fake-ip 化。
-- Windows：面向本机桌面客户端，`allow-lan: false`，只监听本机控制接口，不包含 Tailscale 出站。`fake-ip-filter` 仍保留 `*.tailc1b432.ts.net`，方便桌面端访问 tailnet 域名时走真实解析。
+- Android：开启 TUN、fake-ip DNS、FCM 规则、Google Play 规则、US/JP 分组，并内置 `type: tailscale` 出站和 `🏠 回家` 策略组。家庭/Tailnet 域名和 CIDR 走 🏠 回家。
+- NAS：**透明旁路由**。`tun.enable: true`，`auto-route` + `auto-redirect`，DNS 监听 `0.0.0.0:1053`。部署方式为原生 systemd，不推荐 Docker bridge。详见 `docs/debian-nas-router.md`。
+- Windows：本机桌面代理。`allow-lan: false`，`find-process-mode: off`，不包含 Tailscale。
 
 节点命名建议在订阅转换阶段给美国节点加 `us` 前缀、日本节点加 `jp` 前缀。模板也兼容常见地区词，例如 `美国`、`日本`、`USA`、`Japan`、`Tokyo`、`Los Angeles`。
 
@@ -161,7 +161,8 @@ Android 模板的 WebUI/规则依赖：
 
 - WebUI：`MetaCubeX/metacubexd`，通过 `external-ui-url` 从 GitHub 下载。
 - Geo 数据：`MetaCubeX/meta-rules-dat` 的 `geoip.dat`、`geosite.dat`、`country.mmdb`、`GeoLite2-ASN.mmdb`。
-- 额外规则集：本仓库 `rules/` 目录里的 `custom-direct-domain.list`、`custom-proxy-domain.list`、`pt-direct.list`、`fcm-domain.list`、`fcm-ipcidr.list` 和 `google-play-domain.list`。
+- 规则集：本仓库 `rules/` 目录里的规则文件通过 `GET /rules/<filename>` 提供服务。包括 custom-direct-domain、custom-proxy-domain、pt-direct-domain、misc-direct-domain、japan-services-domain、android-fcm-domain、android-google-play-domain。
+- MRS 规则：private、cn、geoip-cn、openai、github 从 `MetaCubeX/meta-rules-dat` 的 GitHub raw URL 拉取。
 
 本项目按“模板”和“规则”分开维护：`templates/` 管三端完整配置模板，`rules/` 只放 `rule-providers` 会拉取的规则文件。规则公开路径继续保持 `/rules/*.list`，避免已经保存到客户端里的规则 URL 失效。
 
@@ -205,44 +206,17 @@ Android 端注意两点：
 
 推荐完整模板直接保留顶层 `proxies:` 段。没有 `{{PROXIES_YAML}}` 时，系统会自动把你粘贴的节点插入到顶层 `proxies:` 下面，并保留模板里已有的兜底节点。
 
-## NAS Docker 部署参考
+## NAS 透明旁路由部署
 
-NAS 模板默认按"本机 Docker 容器只提供局域网 HTTP/SOCKS 代理，不开启 TUN，不接 Tailscale"假设。推荐 Docker bridge 跑 mihomo alpha 内核，互不污染宿主网络：
+NAS 模板改为真正的 Linux 透明旁路由：
 
-```yaml
-# docker-compose.yml
-services:
-  mihomo:
-    image: metacubex/mihomo:Prerelease-Alpha
-    container_name: mihomo
-    restart: unless-stopped
-    pull_policy: always
-    network_mode: bridge
-    ports:
-      - "7890:7890"   # mixed http+socks
-      # - "9090:9090" # 仅在模板里手动加了 external-controller 才映射，并务必加 secret
-    volumes:
-      - ./mihomo:/root/.config/mihomo
-    environment:
-      - TZ=Asia/Shanghai
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-```
+- `tun.enable: true`、`stack: mixed`、`auto-route: true`、`auto-redirect: true`、`strict-route: true`
+- DNS 监听 `0.0.0.0:1053`，`dns-hijack: [any:53, tcp://any:53]`
+- `allow-lan: true` 保留 7890 端口供 Docker 容器显式使用
 
-首次启动 4 步：
+部署方式为**原生 systemd**（root / CAP_NET_ADMIN），不推荐 Docker bridge。
 
-```bash
-mkdir -p ~/mihomo-stack/mihomo && cd ~/mihomo-stack
-# 把 t-sub 生成的 NAS YAML 存为 ./mihomo/config.yaml（建议直接订阅链接也支持，看 mihomo 启动参数）
-curl -sSL "https://<your-t-sub>/render/<id>" -o ./mihomo/config.yaml
-# 把上面 docker-compose.yml 复制进当前目录
-docker compose up -d && docker logs -f mihomo
-```
-
-局域网其他设备配 `http://<NAS_IP>:7890` 当 HTTP/SOCKS 代理就能用，无需改 DNS/网关。这个容器不需要 `network_mode: host`、`cap_add: NET_ADMIN`、`/dev/net/tun` 或 `privileged: true`。NAS 模板不包含 Tailscale、ts.net 或 `100.64.0.0/10` tailnet 规则；如果 NAS 自己另有 Tailscale daemon，也不由这个 mihomo 模板接管。Docker bridge 默认网段 `172.16.0.0/12` 已包含在模板的 `lan-allowed-ips` 里，容器内的 mihomo 不会因为来源 IP 不在白名单而拒绝连接。
+详见 `docs/debian-nas-router.md`。
 
 ### 共享变量
 
